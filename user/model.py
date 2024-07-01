@@ -1,6 +1,6 @@
 from db import db
 from datetime import datetime
-from sqlalchemy import event
+
 
 class Users(db.Model):
     id = db.Column(db.Integer, primary_key=True)
