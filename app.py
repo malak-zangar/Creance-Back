@@ -4,6 +4,8 @@ from flask import Flask
 from flask_cors import CORS
 from dotenv import load_dotenv
 
+from flask_login import LoginManager
+
 from user.view import user
 from facture.view import facture
 from encaissement.view import encaissement

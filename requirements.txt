@@ -13,3 +13,4 @@ Flask-SQLAlchemy==2.5.1
 psycopg2==2.9.9
 shortuuid
 validators
+flask-login

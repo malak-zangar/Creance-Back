@@ -1,6 +1,7 @@
 from db import db
 from datetime import datetime
-
+from facture.view import *
+from user.view import *
 
 class Encaissements(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -12,7 +13,6 @@ class Encaissements(db.Model):
     actif = db.Column(db.Boolean,nullable=False)
 
 #relation
-
     facture_id = db.Column(db.Integer, db.ForeignKey('factures.id'),nullable=False)
 
     def serialize(self):
@@ -24,6 +24,8 @@ class Encaissements(db.Model):
             'reference' : self.reference,
             'facture_id' : self.facture_id,
             'actif' : self.actif,
+            'facture' : get_facture_by_id(self.facture_id)[0].json['facture']['numero'],
+            'client':  get_client_by_id(get_facture_by_id(self.facture_id)[0].json['facture']['client_id'])[0].json['client']['username']
         }
 
 

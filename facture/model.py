@@ -1,6 +1,6 @@
 from db import db
 from datetime import datetime
-
+from user.view import *
 
 class Factures(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -11,7 +11,7 @@ class Factures(db.Model):
     delai = db.Column(db.Integer )
     montant = db.Column(db.Float, nullable=False)
     montantEncaisse = db.Column(db.Float)
-    dateFinalisation = db.Column(db.DateTime,nullable=False )
+    dateFinalisation = db.Column(db.DateTime)
     solde = db.Column(db.Float)
     retard = db.Column(db.Integer)
     actionRecouvrement =  db.Column(db.String(80),nullable=False)
@@ -39,7 +39,8 @@ class Factures(db.Model):
             'dateFinalisation' : self.dateFinalisation,
             'actionRecouvrement' : self.actionRecouvrement,
             'actif' : self.actif,
-            'client_id' : self.client_id
+            'client_id' : self.client_id,
+            'client': get_client_by_id(self.client_id)[0].json['client']['username']
         }
 
 

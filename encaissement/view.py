@@ -1,6 +1,9 @@
+import json
 from flask import Blueprint, request, jsonify, make_response, redirect, flash, render_template
 from datetime import datetime, timedelta
 from encaissement.model import Encaissements
+from facture.model import Factures
+from facture.view import *
 from db import db
 
 encaissement = Blueprint('encaissement', __name__, url_prefix='/encaissement')
@@ -10,27 +13,48 @@ encaissement = Blueprint('encaissement', __name__, url_prefix='/encaissement')
 @encaissement.route('/create', methods=['POST'])
 def create_encaissement():
     data = request.get_json()
-    date = data.get("date")
+    date = data.get("date")        
     modeReglement = data.get("modeReglement")
     montantEncaisse = data.get("montantEncaisse")
     reference = data.get("reference")
-    facture_id = data.get("facture_id")
+    facture_numero = data.get("facture_numero")
     actif = True
 
-    if not (modeReglement and date and reference and facture_id and montantEncaisse ):
+    if not (modeReglement and date and reference and facture_numero and montantEncaisse ):
         return jsonify({
             "erreur": "svp entrer toutes les données"
         }), 400
-    
-  
+
+    response = get_facture_by_numero(facture_numero)
+    if response[1] != 200:
+        return response[0]
+    facture_id = response[0].json['facture']['id']
+    #facture_date = response[0].json['facture']['date']
+
     if Encaissements.query.filter_by(reference=reference).first() is not None:
         return jsonify({'erreur': "Référence d'encaissement existe déja"}), 409
 
 
+
     new_encaissement = Encaissements(modeReglement=modeReglement, date=date,montantEncaisse=montantEncaisse,reference=reference,
        facture_id=facture_id,actif=actif)
+    date_facture = datetime.strptime(response[0].json['facture']['date'], '%a, %d %b %Y %H:%M:%S %Z')
+    date_encaissement = datetime.strptime(date, '%Y-%m-%d')
+    #facture_date1=datetime.strptime(facture_date, '%Y-%m-%d')
+    if date_encaissement < date_facture :
+        return jsonify({
+            "erreur": "Date antérieur à la date de facture"
+        }), 400
+
+
     db.session.add(new_encaissement)
-    db.session.commit()
+
+    update_facture_result = updateFactureAfterEncaissement(facture_id, montantEncaisse)
+    if not update_facture_result[0]:
+        db.session.rollback()  
+        return update_facture_result[1], 500  
+
+    db.session.commit()  
     return make_response(jsonify({"message": "encaissement crée avec succes", "encaissement": new_encaissement.serialize()}), 201)
 
 
