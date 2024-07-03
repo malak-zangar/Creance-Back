@@ -21,9 +21,9 @@ services:
     ports:
       - 5432:5432
     environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=secret
-      - POSTGRES_DB=db_name
+      - POSTGRES_USER=adminRoot
+      - POSTGRES_PASSWORD=4ssd35f1SD153a4s22sqskdqjsdql
+      - POSTGRES_DB=root1
     volumes:
       - postgres_data:/var/lib/postgresql/data
 

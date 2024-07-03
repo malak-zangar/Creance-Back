@@ -4,7 +4,9 @@ from flask import Flask
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-from todo.view import todo
+from user.view import user
+from facture.view import facture
+from encaissement.view import encaissement
 
 load_dotenv(dotenv_path=".env")
 
@@ -22,7 +24,10 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_size' : 100, 'pool_recycle' : 3
 
 db.init_app(app)
 
-app.register_blueprint(todo)
+app.register_blueprint(user)
+app.register_blueprint(facture)
+app.register_blueprint(encaissement)
+
 
 @app.before_first_request
 def create_tables():
