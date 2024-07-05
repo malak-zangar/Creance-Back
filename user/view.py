@@ -1,24 +1,18 @@
-from flask import Blueprint, request, jsonify, make_response, redirect, flash, render_template
+import io
+from flask import Blueprint, Response, request, jsonify, make_response
+from flask_login import login_required
+import pandas as pd
 from datetime import datetime, timedelta
 from user.model import Users
 from db import db
 import validators
 
+
 user = Blueprint('user', __name__, url_prefix='/user')
-
-@user.route('/register', methods=['POST'])
-def register():
-    # Code to register a user
-    return make_response(jsonify({"message": "User created successfully"}), 201)
-
-@user.route('/login', methods=['POST'])
-def login():
-    # Code to login a user
-    return make_response(jsonify({"message": "User logged in successfully"}), 200)
-
 
 #Add new client
 @user.route('/create', methods=['POST'])
+#@login_required
 def create_client():
     data = request.get_json()
     username = data.get("username")
@@ -60,6 +54,7 @@ def create_client():
 
 #GetAll Clients
 @user.route('/getAll', methods=['GET'])
+#@login_required
 def get_all_clients():
     #return list(map(lambda x: x.serialize(), Users.query.all()))
     clients = Users.query.all()
@@ -68,23 +63,35 @@ def get_all_clients():
 
 #GetActifClients
 @user.route('/getAllActif', methods=['GET'])
+#@login_required
 def get_all_actif_clients():
     actif_clients = Users.query.filter_by(actif=True).all()
     serialized_clients = [client.serialize() for client in actif_clients]
     return jsonify(serialized_clients)
-    #return list(map(lambda x: x.serialize(), actif_clients))
 
 #GetArchivedClients
 @user.route('/getAllArchived', methods=['GET'])
+#@login_required
 def get_all_archived_clients():
     archived_clients = Users.query.filter_by(actif=False).all()
     serialized_clients = [client.serialize() for client in archived_clients]
     return jsonify(serialized_clients)
     #return list(map(lambda x: x.serialize(), archived_clients))
 
+#GetClientsByName
+@user.route('/getClientByName/<string:name>', methods=['GET'])
+#@login_required
+def get_clients_by_name(name):
+    clients = Users.query.filter(Users.username.ilike(f'%{name}%')).all()
+    if not clients:
+        return jsonify({"message": "aucun client trouvé avec ce nom"}), 404  
+    serialized_clients = [client.serialize() for client in clients]
+    return jsonify(serialized_clients)
+
 
 #GetClientByID
 @user.route('/getByID/<int:id>',methods=['GET'])
+#@login_required
 def get_client_by_id(id):
     client = Users.query.get(id)
 
@@ -100,6 +107,7 @@ def get_client_by_id(id):
 
 #ArchiveClient
 @user.route('/archiveClient/<int:id>',methods=['PUT'])
+#@login_required
 def archiverClient(id):
     client = Users.query.get(id)
 
@@ -118,6 +126,7 @@ def archiverClient(id):
 
 #UpdateClient
 @user.route('/updateClient/<int:id>',methods=['PUT'])
+#@login_required
 def updateClient(id):
     client = Users.query.get(id)
 
@@ -138,3 +147,20 @@ def updateClient(id):
         db.session.rollback()
         return jsonify({"message": "Echec de la modification du client"}), 500
 
+#export to csv
+@user.route('/export/csv',methods=['GET'])
+#@login_required
+def export_csv():
+    users = Users.query.all()
+    users_list = [user.serialize() for user in users]
+    df = pd.DataFrame(users_list)
+    output = io.StringIO()
+    df.to_csv(output, index=False)
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={
+            "Content-Disposition": "attachment;filename=users.csv"
+        }
+    )

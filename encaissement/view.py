@@ -11,6 +11,7 @@ encaissement = Blueprint('encaissement', __name__, url_prefix='/encaissement')
 
 #Add new encaissement
 @encaissement.route('/create', methods=['POST'])
+#@login_required
 def create_encaissement():
     data = request.get_json()
     date = data.get("date")        
@@ -60,6 +61,7 @@ def create_encaissement():
 
 #GetAll encaissement
 @encaissement.route('/getAll', methods=['GET'])
+#@login_required
 def get_all_encaissements():
     encaissements = Encaissements.query.all()
     serialized_encaissements = [encaissement.serialize() for encaissement in encaissements]
@@ -67,6 +69,7 @@ def get_all_encaissements():
 
 #GetActifencaissements
 @encaissement.route('/getAllActif', methods=['GET'])
+#@login_required
 def get_all_actif_encaissements():
     actif_encaissements = Encaissements.query.filter_by(actif=True).all()
     serialized_encaissements = [facture.serialize() for facture in actif_encaissements]
@@ -74,6 +77,7 @@ def get_all_actif_encaissements():
 
 #GetArchivedencaissements
 @encaissement.route('/getAllArchived', methods=['GET'])
+#@login_required
 def get_all_archived_encaissements():
     archived_encaissements = Encaissements.query.filter_by(actif=False).all()
     serialized_encaissements = [encaissement.serialize() for encaissement in archived_encaissements]
@@ -82,6 +86,7 @@ def get_all_archived_encaissements():
 
 #GetfactureByID
 @encaissement.route('/getByID/<int:id>',methods=['GET'])
+#@login_required
 def get_encaissement_by_id(id):
     encaissement = Encaissements.query.get(id)
 
@@ -97,6 +102,7 @@ def get_encaissement_by_id(id):
 
 #Archivefacture
 @encaissement.route('/archiveEncaissement/<int:id>',methods=['PUT'])
+#@login_required
 def archiverEncaissement(id):
     encaissement = Encaissements.query.get(id)
 
@@ -115,6 +121,7 @@ def archiverEncaissement(id):
 
 #Updatefacture
 @encaissement.route('/updateEncaissement/<int:id>',methods=['PUT'])
+#@login_required
 def updateEncaissement(id):
     encaissement = Encaissements.query.get(id)
 
@@ -135,3 +142,21 @@ def updateEncaissement(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"message": "Echec de la modification de l'encaissement"}), 500
+    
+
+#generer recu de paiement
+@encaissement.route('/recu/<int:encaissement_id>',methods=['GET'])
+#@login_required
+def receipt(encaissement_id):
+    encaissement = Encaissements.query.get_or_404(encaissement_id)
+    encaissement_data = encaissement.serialize()
+
+    html = render_template('recu_paiement.html', encaissement=encaissement_data)
+    
+    pdf = weasyprint.HTML(string=html).write_pdf()
+
+    response = make_response(pdf)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'inline; filename=recu_encaissement_{encaissement_id}.pdf'
+
+    return response

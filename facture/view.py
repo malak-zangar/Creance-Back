@@ -1,13 +1,19 @@
-from flask import Blueprint, request, jsonify, make_response
+from flask import Blueprint, current_app, render_template, request, jsonify, make_response
 from datetime import datetime, timedelta
+from flask_mail import Mail, Message
+import weasyprint
 from facture.model import Factures
 from db import db
+from user.view import get_client_by_id
+from flask_login import login_required
+
 
 facture = Blueprint('facture', __name__, url_prefix='/facture')
 
 
 #Add new facture
 @facture.route('/create', methods=['POST'])
+#@login_required
 def create_facture():
     data = request.get_json()
     numero = data.get("numero")
@@ -18,13 +24,6 @@ def create_facture():
     actionRecouvrement = data.get("actionRecouvrement")
     client_id = data.get("client_id")
     actif = True
-
-
-    #solde = data.get("solde")
-    #retard = data.get("retard")
-    #dateFinalisation = data.get("dateFinalisation")
-    #echeance = data.get("echeance")
-    #statut = data.get("statut")
 
 
     if delai < 1 :
@@ -87,13 +86,15 @@ def create_facture():
 
 #GetAll factures
 @facture.route('/getAll', methods=['GET'])
+#@login_required
 def get_all_factures():
     factures = Factures.query.all()
     serialized_factures = [facture.serialize() for facture in factures]
-    return jsonify(serialized_factures)
+    return make_response(jsonify(serialized_factures))
 
 #GetActiffactures
 @facture.route('/getAllActif', methods=['GET'])
+#@login_required
 def get_all_actif_factures():
     actif_factures = Factures.query.filter_by(actif=True).all()
     serialized_factures = [facture.serialize() for facture in actif_factures]
@@ -101,6 +102,7 @@ def get_all_actif_factures():
 
 #GetArchivedfactures
 @facture.route('/getAllArchived', methods=['GET'])
+#@login_required
 def get_all_archived_factures():
     archived_factures = Factures.query.filter_by(actif=False).all()
     serialized_factures = [facture.serialize() for facture in archived_factures]
@@ -109,6 +111,7 @@ def get_all_archived_factures():
 
 #GetfactureByID
 @facture.route('/getByID/<int:id>',methods=['GET'])
+#@login_required
 def get_facture_by_id(id):
     facture = Factures.query.get(id)
 
@@ -124,6 +127,7 @@ def get_facture_by_id(id):
 
 #GetfactureBynumero
 @facture.route('/getByNumero/<string:numero>',methods=['GET'])
+#@login_required
 def get_facture_by_numero(numero):
     facture = Factures.query.filter_by(numero=numero).first()
 
@@ -137,6 +141,7 @@ def get_facture_by_numero(numero):
 
 #Archivefacture
 @facture.route('/archiveFacture/<int:id>',methods=['PUT'])
+#@login_required
 def archiverFacture(id):
     facture = Factures.query.get(id)
 
@@ -155,6 +160,7 @@ def archiverFacture(id):
 
 #Updatefacture
 @facture.route('/updateFacture/<int:id>',methods=['PUT'])
+#@login_required
 def updateFacture(id):
     facture = Factures.query.get(id)
 
@@ -256,3 +262,74 @@ def updateFactureAfterEncaissement(id,montant_encaisse):
     except Exception as e:
         db.session.rollback()
         return False, jsonify({"message": "Erreur lors de la mise à jour de la facture"}), 500
+
+
+
+#MarquerPayéfacture
+@facture.route('/marquerpayeFacture/<int:id>',methods=['PUT'])
+#@login_required
+def marquerpayeFacture(id):
+    
+
+    facture = Factures.query.get(id)
+    if not facture:
+        return jsonify({"message": "Facture n'existe pas"}), 404
+    
+    facture.solde=0
+    facture.montantEncaisse=facture.montant
+    facture.statut = "payé"
+
+    today = datetime.today()
+
+    facture.dateFinalisation = today.strftime('%Y-%m-%d')
+
+        # Calcul du retard en jours
+    facture.retard = (today - facture.echeance).days if (today > facture.echeance and facture.solde != 0) else 0
+    try:
+        db.session.commit()
+        return jsonify({"message": "facture marquée payée avec succés"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": f"Echec du paiement de la facture: {str(e)}"}), 500    
+
+
+@facture.route('/report/<int:facture_id>',methods=['GET'])
+#@login_required
+def report(facture_id):
+    facture = Factures.query.get_or_404(facture_id)
+    facture_data = facture.serialize()
+
+
+    html = render_template('facture_report.html', facture=facture_data)
+    
+    pdf = weasyprint.HTML(string=html).write_pdf()
+
+    response = make_response(pdf)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'inline; filename=report_facture_{facture_id}.pdf'
+
+    return response
+
+
+def send_reminder_email(facture):
+    from app import mail
+
+    client_email = get_client_by_id(facture.client_id)[0].json['client']['email']
+    msg = Message(
+        "Rappel de Facture",
+        sender=current_app.config['MAIL_USERNAME'],
+        recipients=[client_email]
+    )
+    msg.body = f"Bonjour, ceci est un rappel pour la facture {facture.numero} qui est due le {facture.echeance.strftime('%Y-%m-%d')}."
+    mail.send(msg)
+
+
+@facture.route('/send-reminder')
+def schedule_reminders():
+    
+    factures = Factures.query.filter(Factures.statut !='payé').all()
+    now = datetime.now()
+    for facture in factures:
+        if facture.echeance - now <= timedelta(days=7):
+            send_reminder_email(facture)
+    return 'Reminders scheduled!'

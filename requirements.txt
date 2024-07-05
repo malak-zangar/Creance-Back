@@ -14,3 +14,8 @@ psycopg2==2.9.9
 shortuuid
 validators
 flask-login
+jinja2 
+weasyprint
+Flask-Mail
+APScheduler
+pandas
