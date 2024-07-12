@@ -17,36 +17,36 @@ def create_client():
     data = request.get_json()
     username = data.get("username")
     email = data.get("email")
+    emailcc=data.get("emailcc")
     phone = data.get("phone")
+    identifiantFiscal=data.get("identifiantFiscal")
     adresse = data.get("adresse")
-    actif = True
+    actif = False
 
-    if not (username and email and phone and adresse):
+    if not (username and email and phone and adresse and identifiantFiscal and emailcc):
         return jsonify({
-            "erreur": "svp entrer un nom d'utilisateur, un email , un numéro de téléphone et une adresse"
+            "erreur": "svp entrer toutes les données nécessaires"
         }), 400
     
 
     if len(username) < 3:
         return jsonify({'erreur': "Nom d'utilisateur trop court"}), 400
 
-    if not username.isalnum() or " " in username:
-        return jsonify({'erreur': "nom d'utilisateur ne doit contenir que des caractères et pas d'espace "}), 400
-
-    if not validators.email(email):
+    if not validators.email(email) or not validators.email(emailcc):
         return jsonify({'error': "Email is not valid"}), 400
 
     if Users.query.filter_by(email=email).first() is not None:
-        return jsonify({'erreur': "Email iexiste déja"}), 409
+        return jsonify({'erreur': "Email existe déja"}), 409
 
     if Users.query.filter_by(username=username).first() is not None:
         return jsonify({'erreur': "Nom d'utilisateur existe déja"}), 409
     
-    if Users.query.filter_by(phone=phone).first() is not None:
-        return jsonify({'erreur': "Numéro de téléphone existe déja"}), 409
+    if Users.query.filter_by(identifiantFiscal=identifiantFiscal).first() is not None:
+        return jsonify({'erreur': "Identifiant fiscal existe déja"}), 409
 
 
-    new_client = Users(username=username, email=email,phone=phone,adresse=adresse,actif=actif)
+    new_client = Users(username=username, email=email,phone=phone,adresse=adresse,identifiantFiscal=identifiantFiscal,
+                       emailcc=emailcc,actif=actif)
     db.session.add(new_client)
     db.session.commit()
     return make_response(jsonify({"message": "client created successfully", "client": new_client.serialize()}), 201)
@@ -123,6 +123,24 @@ def archiverClient(id):
         db.session.rollback()
         return jsonify({"message": "Echec dans l'archivage du client"}), 500
     
+#activerClient
+@user.route('/activerClient/<int:id>',methods=['PUT'])
+#@login_required
+def activerClient(id):
+    client = Users.query.get(id)
+
+    if not client:
+        return jsonify({"message": "client n'existe pas"}), 404
+    
+    client.actif=True
+
+    try:
+        db.session.commit()
+        return jsonify({"message": "Client restauré avec succés"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": "Echec dans la restauration du client"}), 500
+
 
 #UpdateClient
 @user.route('/updateClient/<int:id>',methods=['PUT'])
@@ -139,6 +157,8 @@ def updateClient(id):
     client.phone = data.get('phone', client.phone)
     client.adresse = data.get('adresse', client.adresse)
     client.actif = data.get('actif',client.actif)
+    client.emailcc=data.get('emailcc',client.emailcc)
+    client.identifiantFiscal= data.get('identifiantFiscal', client.identifiantFiscal)
 
     try:
         db.session.commit()
@@ -162,5 +182,41 @@ def export_csv():
         mimetype='text/csv',
         headers={
             "Content-Disposition": "attachment;filename=users.csv"
+        }
+    )
+
+#export to csv
+@user.route('/export/csv/actifusers',methods=['GET'])
+#@login_required
+def export_csv_actifusers():
+    users = Users.query.filter_by(actif=True).all()
+    users_list = [user.serialize() for user in users]
+    df = pd.DataFrame(users_list)
+    output = io.StringIO()
+    df.to_csv(output, index=False)
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={
+            "Content-Disposition": "attachment;filename=actifusers.csv"
+        }
+    )
+
+    #export to csv
+@user.route('/export/csv/nonactif',methods=['GET'])
+#@login_required
+def export_csv_nonactifusers():
+    users = Users.query.filter_by(actif=False).all()
+    users_list = [user.serialize() for user in users]
+    df = pd.DataFrame(users_list)
+    output = io.StringIO()
+    df.to_csv(output, index=False)
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={
+            "Content-Disposition": "attachment;filename=nonactifusers.csv"
         }
     )

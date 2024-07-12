@@ -16,6 +16,7 @@ class Factures(db.Model):
     retard = db.Column(db.Integer)
     actionRecouvrement =  db.Column(db.String(80),nullable=False)
     actif = db.Column(db.Boolean,nullable=False)
+    devise = db.Column(db.String(80),nullable=False)
 
     encaissements_facture = db.relationship('Encaissements', backref='facture', lazy=True)
 
@@ -39,8 +40,9 @@ class Factures(db.Model):
             'dateFinalisation' : self.dateFinalisation,
             'actionRecouvrement' : self.actionRecouvrement,
             'actif' : self.actif,
+            'devise': self.devise,
             'client_id' : self.client_id,
-            'client': get_client_by_id(self.client_id)[0].json['client']['username']
+            'client': get_client_by_id(self.client_id)[0].json['client']['username'],
         }
 
 

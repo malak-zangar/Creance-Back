@@ -1,11 +1,12 @@
 from flask import Blueprint, current_app, render_template, request, jsonify, make_response
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from flask_mail import Mail, Message
 import weasyprint
 from facture.model import Factures
 from db import db
 from user.view import get_client_by_id
 from flask_login import login_required
+from sqlalchemy import cast, Integer
 
 
 facture = Blueprint('facture', __name__, url_prefix='/facture')
@@ -18,11 +19,12 @@ def create_facture():
     data = request.get_json()
     numero = data.get("numero")
     date = data.get("date")
-    delai = data.get("delai")
-    montant = data.get("montant")
-    montantEncaisse = data.get("montantEncaisse")
+    delai = int(data.get("delai"))
+    montant = float(data.get("montant"))
+    montantEncaisse = float(data.get("montantEncaisse"))
     actionRecouvrement = data.get("actionRecouvrement")
-    client_id = data.get("client_id")
+    devise = data.get("devise")
+    client_id = int(data.get("client_id"))
     actif = True
 
 
@@ -32,7 +34,7 @@ def create_facture():
         }), 400
 
 
-    if not (numero and date and delai and montant and montantEncaisse is not None and actionRecouvrement and client_id ):
+    if not (numero and devise and date and delai and montant and montantEncaisse is not None and actionRecouvrement and client_id ):
         return jsonify({
             "erreur": "svp entrer toutes les données"
         }), 400
@@ -59,16 +61,16 @@ def create_facture():
     retard = (today - echeance).days if (today > echeance and solde != 0) else 0
 
 
-
-    # Détermination du statut en fonction du solde
-    if solde == 0:
-        statut = "payé"
+    if retard != 0 :
+        statut = "Échue"
+    elif solde == 0:
+        statut = "Payée"
         dateFinalisation = today.strftime('%Y-%m-%d')
     elif solde == montant:
-        statut = "non payé"
+        statut = "Non payée"
         dateFinalisation = None
     else:
-        statut = "en cours"
+        statut = "En cours"
         dateFinalisation = None
     
     if Factures.query.filter_by(numero=numero).first() is not None:
@@ -78,9 +80,11 @@ def create_facture():
 
     new_facture = Factures(numero=numero, date=date,echeance=echeance,statut=statut,delai=delai,montant=montant,
                 montantEncaisse=montantEncaisse, solde=solde, retard=retard, dateFinalisation=dateFinalisation,
-                   actionRecouvrement=actionRecouvrement, actif=actif ,client_id=client_id )
+                devise=devise, actionRecouvrement=actionRecouvrement, actif=actif ,client_id=client_id )
     db.session.add(new_facture)
     db.session.commit()
+    send_validation_email(facture)
+
     return make_response(jsonify({"message": "facture crée avec succes", "facture": new_facture.serialize()}), 201)
 
 
@@ -129,7 +133,7 @@ def get_facture_by_id(id):
 @facture.route('/getByNumero/<string:numero>',methods=['GET'])
 #@login_required
 def get_facture_by_numero(numero):
-    facture = Factures.query.filter_by(numero=numero).first()
+    facture = Factures.query.filter(cast(numero, Integer) == numero).first()
 
     if not facture:
         return jsonify({"message": "facture n'existe pas"}), 404
@@ -157,6 +161,25 @@ def archiverFacture(id):
         db.session.rollback()
         return jsonify({"message": "Echec dans l'archivage du facture"}), 500
     
+#activerfacture
+@facture.route('/restaureFacture/<int:id>',methods=['PUT'])
+#@login_required
+def activerFacture(id):
+    facture = Factures.query.get(id)
+
+    if not facture:
+        return jsonify({"message": "facture n'existe pas"}), 404
+    
+    facture.actif=True
+
+    try:
+        db.session.commit()
+        return jsonify({"message": "facture restaurée avec succés"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": "Echec dans la restauration du facture"}), 500
+    
+
 
 #Updatefacture
 @facture.route('/updateFacture/<int:id>',methods=['PUT'])
@@ -166,21 +189,36 @@ def updateFacture(id):
 
     if not facture:
         return jsonify({"message": "facture n'existe pas"}), 404
+    def parse_date(date_input):
+        if isinstance(date_input, str):
+            try:
+                return datetime.strptime(date_input, '%Y-%m-%d').date()
+            except ValueError:
+                raise ValueError("Invalid date format")
+        elif isinstance(date_input, datetime):
+            return date_input.date()
+        elif isinstance(date_input, date):
+            return date_input
+        else:
+            raise ValueError("Invalid date format")
 
     data = request.get_json()
     facture.numero = data.get("numero",facture.numero)
-    facture.date = data.get("date",facture.date)
-    facture.echeance = data.get("echeance",facture.echeance)
+    #facture.date = date(data.get("date",facture.date))
+    facture.date= parse_date(data.get("date",facture.date))
+    #facture.echeance = date(data.get("echeance",facture.echeance))
+    facture.echeance = parse_date(data.get("echeance",facture.echeance))
     facture.statut = data.get("statut",facture.statut)
     facture.delai = data.get("delai",facture.delai)
-    facture.montant = data.get("montant",facture.montant)
-    facture.montantEncaisse = data.get("montantEncaisse",facture.montantEncaisse)
-    facture.solde = data.get("solde",facture.solde)
+    facture.montant = float(data.get("montant",facture.montant))
+    facture.montantEncaisse = float(data.get("montantEncaisse",facture.montantEncaisse))
+    facture.solde = float(data.get("solde",facture.solde))
     facture.actionRecouvrement = data.get("actionRecouvrement",facture.actionRecouvrement)
     facture.actif = data.get("actif",facture.actif)
+    facture.devise = data.get("devise",facture.devise)
 
 
-    if facture.montantEncaisse > facture.montant:
+    if facture.montantEncaisse > facture.montant :
         return jsonify({
             "erreur": "Le montant encaissé ne peut pas être supérieur au montant total"
         }), 400
@@ -200,22 +238,26 @@ def updateFacture(id):
         }), 400
 
     # Calcul du retard en jours
-    today = datetime.today()
+    #today = parse_date(datetime.today())
+    today = datetime.today().date()
+
+    print (f" {type(facture.echeance)}")
+
     facture.retard = (today - facture.echeance).days if (today > facture.echeance and facture.solde != 0) else 0
 
+    facture.solde= facture.montant - facture.montantEncaisse
 
-
-    # Détermination du statut en fonction du solde
-    if facture.solde == 0:
-        facture.statut = "payé"
+    if facture.retard != 0 :
+        facture.statut = "Échue"
+    elif facture.solde == 0:
+        facture.statut = "Payée"
         facture.dateFinalisation = today.strftime('%Y-%m-%d')
     elif facture.solde == facture.montant:
-        facture.statut = "non payé"
+        facture.statut = "Non payée"
         facture.dateFinalisation = None
     else:
-        facture.statut = "en cours"
+        facture.statut = "En cours"
         facture.dateFinalisation = None
-
     try:
         db.session.commit()
         return jsonify({"message": "facture modifiée avec succés"}), 200
@@ -245,17 +287,19 @@ def updateFactureAfterEncaissement(id,montant_encaisse):
 
 
 
-    # Détermination du statut en fonction du solde
-    if facture.solde == 0:
-        facture.statut = "payé"
+    if facture.retard != 0 :
+        facture.statut = "Échue"
+    elif facture.solde == 0:
+        facture.statut = "Payée"
         facture.dateFinalisation = today.strftime('%Y-%m-%d')
     elif facture.solde == facture.montant:
-        facture.statut = "non payé"
+        facture.statut = "Non payée"
         facture.dateFinalisation = None
     else:
-        facture.statut = "en cours"
+        facture.statut = "En cours"
         facture.dateFinalisation = None
 
+        
     try:
         db.session.commit()
         return True, None  
@@ -321,6 +365,18 @@ def send_reminder_email(facture):
         recipients=[client_email]
     )
     msg.body = f"Bonjour, ceci est un rappel pour la facture {facture.numero} qui est due le {facture.echeance.strftime('%Y-%m-%d')}."
+   # mail.send(msg)
+
+def send_validation_email(facture):
+    from app import mail
+
+    client_email = get_client_by_id(facture.client_id)[0].json['client']['email']
+    msg = Message(
+        "Validation de Facture",
+        sender=current_app.config['MAIL_USERNAME'],
+        recipients=[client_email]
+    )
+    msg.body = f"Bonjour, vous avez une nouvelle facture {facture.numero} à valider . Cliquer sur ce lien SVP : http://localhost:5173/factures/{facture.id}/valider  ."
     mail.send(msg)
 
 

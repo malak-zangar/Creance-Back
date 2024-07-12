@@ -16,7 +16,7 @@ def create_encaissement():
     data = request.get_json()
     date = data.get("date")        
     modeReglement = data.get("modeReglement")
-    montantEncaisse = data.get("montantEncaisse")
+    montantEncaisse = float(data.get("montantEncaisse"))
     reference = data.get("reference")
     facture_numero = data.get("facture_numero")
     actif = True
@@ -118,6 +118,25 @@ def archiverEncaissement(id):
         db.session.rollback()
         return jsonify({"message": "Echec dans l'archivage de l'encaissement"}), 500
     
+#activerfacture
+@encaissement.route('/activerEncaissement/<int:id>',methods=['PUT'])
+#@login_required
+def activerEncaissement(id):
+    encaissement = Encaissements.query.get(id)
+
+    if not encaissement:
+        return jsonify({"message": "encaissement n'existe pas"}), 404
+    
+    encaissement.actif=True
+
+    try:
+        db.session.commit()
+        return jsonify({"message": "encaissement restauré avec succés"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": "Echec dans la restauration de l'encaissement"}), 500
+    
+
 
 #Updatefacture
 @encaissement.route('/updateEncaissement/<int:id>',methods=['PUT'])
