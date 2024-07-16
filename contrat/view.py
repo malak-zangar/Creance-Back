@@ -75,7 +75,7 @@ def create_contrat():
 @contrat.route('/getAll', methods=['GET'])
 #@login_required
 def get_all_contrats():
-    contrats = Contrats.query.all()
+    contrats = Contrats.query.order_by(Contrats.dateDebut.desc()).all()
     serialized_contrats = [contrat.serialize() for contrat in contrats]
     return make_response(jsonify(serialized_contrats))
 
@@ -113,12 +113,12 @@ def get_contrat_by_reference(reference):
 @contrat.route('/getByClient/<int:id>',methods=['GET'])
 #@login_required
 def get_contrat_by_client(id):
-    contracts = Contrats.query.filter_by(client_id=id).all()
+    contracts = Contrats.query.filter_by(client_id=id).order_by(Contrats.dateDebut.desc()).all()
 
     if not contracts:
         return jsonify({"message": "Aucun contrat trouvé pour ce client"}), 404
 
-    serialized_contracts = [contract.serialize() for contract in contracts]
+    serialized_contracts = [contrat.serialize() for contrat in contracts]
     return jsonify({"message": "Contrats trouvés pour le client", "contracts": serialized_contracts}), 200
  
 #UpdateContrat

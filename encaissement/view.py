@@ -63,8 +63,14 @@ def create_encaissement():
 @encaissement.route('/getAll', methods=['GET'])
 #@login_required
 def get_all_encaissements():
-    encaissements = Encaissements.query.all()
+    encaissements = Encaissements.query.order_by(Encaissements.date.desc()).all()
+
+# Debugging log to verify the order
+    for encaissement in encaissements:
+        print(f"ID: {encaissement.id}, Date: {encaissement.date}")
+
     serialized_encaissements = [encaissement.serialize() for encaissement in encaissements]
+
     return jsonify(serialized_encaissements)
 
 #GetActifencaissements

@@ -1,10 +1,13 @@
+from operator import and_
 from flask import Blueprint, current_app, render_template, request, jsonify, make_response
 from datetime import date, datetime, timedelta
 from flask_mail import Mail, Message
 import weasyprint
+from contrat.model import Contrats
+from contrat.view import get_contrat_by_id
 from facture.model import Factures
 from db import db
-from user.view import get_client_by_id
+from user.view import *
 from flask_login import login_required
 from sqlalchemy import cast, Integer
 
@@ -24,8 +27,9 @@ def create_facture():
     montantEncaisse = float(data.get("montantEncaisse"))
     actionRecouvrement = data.get("actionRecouvrement")
     devise = data.get("devise")
-    client_id = int(data.get("client_id"))
-    actif = True
+    #client_id = int(data.get("client_id"))
+    contrat_id = int(data.get("contrat_id"))
+    actif = False
 
 
     if delai < 1 :
@@ -34,7 +38,7 @@ def create_facture():
         }), 400
 
 
-    if not (numero and devise and date and delai and montant and montantEncaisse is not None and actionRecouvrement and client_id ):
+    if not (numero and devise and date and delai and montant and montantEncaisse is not None and actionRecouvrement and contrat_id ):
         return jsonify({
             "erreur": "svp entrer toutes les données"
         }), 400
@@ -80,10 +84,10 @@ def create_facture():
 
     new_facture = Factures(numero=numero, date=date,echeance=echeance,statut=statut,delai=delai,montant=montant,
                 montantEncaisse=montantEncaisse, solde=solde, retard=retard, dateFinalisation=dateFinalisation,
-                devise=devise, actionRecouvrement=actionRecouvrement, actif=actif ,client_id=client_id )
+                devise=devise, actionRecouvrement=actionRecouvrement, actif=actif ,contrat_id=contrat_id )
     db.session.add(new_facture)
     db.session.commit()
-    send_validation_email(facture)
+    send_validation_email(new_facture)
 
     return make_response(jsonify({"message": "facture crée avec succes", "facture": new_facture.serialize()}), 201)
 
@@ -92,7 +96,7 @@ def create_facture():
 @facture.route('/getAll', methods=['GET'])
 #@login_required
 def get_all_factures():
-    factures = Factures.query.all()
+    factures = Factures.query.order_by(Factures.date.desc()).all()
     serialized_factures = [facture.serialize() for facture in factures]
     return make_response(jsonify(serialized_factures))
 
@@ -100,15 +104,15 @@ def get_all_factures():
 @facture.route('/getAllActif', methods=['GET'])
 #@login_required
 def get_all_actif_factures():
-    actif_factures = Factures.query.filter_by(actif=True).all()
+    actif_factures = Factures.query.filter_by(actif=True).order_by(Factures.date.desc()).all()
     serialized_factures = [facture.serialize() for facture in actif_factures]
-    return jsonify(serialized_factures)
+    return make_response(jsonify(serialized_factures))
 
 #GetArchivedfactures
 @facture.route('/getAllArchived', methods=['GET'])
 #@login_required
 def get_all_archived_factures():
-    archived_factures = Factures.query.filter_by(actif=False).all()
+    archived_factures = Factures.query.filter_by(actif=False).order_by(Factures.date.desc()).all()
     serialized_factures = [facture.serialize() for facture in archived_factures]
     return jsonify(serialized_factures)
 
@@ -128,6 +132,71 @@ def get_facture_by_id(id):
         'message': "facture existe :",
         'facture': facture.serialize()
     }), 200
+
+
+# Get clients with active unpaid invoices
+@facture.route('/getClientsWithActiveUnpaidInvoices', methods=['GET'])
+def get_clients_with_active_unpaid_invoices():
+    clients = Users.query.filter_by(actif=True).all()
+    result = []
+
+    for client in clients:
+        contrats = Contrats.query.filter_by(client_id=client.id).all()
+        contrat_ids = [contrat.id for contrat in contrats]
+
+        if contrat_ids:
+            unpaid_invoices = Factures.query.filter(
+                Factures.contrat_id.in_(contrat_ids),
+                Factures.actif == True,
+                Factures.statut != 'Payée'
+            ).order_by(Factures.date.desc()).all()
+
+            if unpaid_invoices:
+                result.append(client.serialize())
+
+    return jsonify(result), 200
+
+
+#GetFacturesByClient
+@facture.route('/getByClient/<int:client_id>', methods=['GET'])
+#@login_required
+def get_factures_by_client(client_id):
+    contrats = Contrats.query.filter_by(client_id=client_id).all()
+    
+    if not contrats:
+        return jsonify({"message": "Aucun contrat trouvé pour ce client"}), 404
+    
+    factures = Factures.query.filter(Factures.contrat_id.in_([contrat.id for contrat in contrats])).order_by(Factures.date.desc()).all()
+    
+    if not factures:
+        return jsonify({"message": "Aucune facture trouvée pour ce client"}), 404
+    
+    serialized_factures = [facture.serialize() for facture in factures]
+    return make_response(jsonify(serialized_factures), 200)
+
+
+#GetFacturesByClient
+@facture.route('getByClient/actif/<int:client_id>', methods=['GET'])
+#@login_required
+def get_actif_factures_by_client(client_id):
+
+    contrats = Contrats.query.filter_by(client_id=client_id).all()
+    
+    if not contrats:
+        return jsonify({"message": "Aucun contrat trouvé pour ce client"}), 404
+    
+    factures = Factures.query.filter(
+            Factures.contrat_id.in_([contrat.id for contrat in contrats]),
+            Factures.actif == True,
+    ).order_by(Factures.date.desc()).all()
+
+    if not factures:
+        return jsonify({"message": "Aucune facture active trouvée pour ce client"}), 404
+    
+    serialized_factures = [facture.serialize() for facture in factures]
+    return make_response(jsonify(serialized_factures), 200)
+
+
 
 #GetfactureBynumero
 @facture.route('/getByNumero/<string:numero>',methods=['GET'])
@@ -299,7 +368,7 @@ def updateFactureAfterEncaissement(id,montant_encaisse):
         facture.statut = "En cours"
         facture.dateFinalisation = None
 
-        
+
     try:
         db.session.commit()
         return True, None  
@@ -321,7 +390,7 @@ def marquerpayeFacture(id):
     
     facture.solde=0
     facture.montantEncaisse=facture.montant
-    facture.statut = "payé"
+    facture.statut = "Payée"
 
     today = datetime.today()
 
@@ -358,7 +427,7 @@ def report(facture_id):
 def send_reminder_email(facture):
     from app import mail
 
-    client_email = get_client_by_id(facture.client_id)[0].json['client']['email']
+    client_email = get_client_by_id(get_contrat_by_id(facture.contrat_id)[0].json['contrat']['client_id'])[0].json['client']['email']
     msg = Message(
         "Rappel de Facture",
         sender=current_app.config['MAIL_USERNAME'],
@@ -370,20 +439,24 @@ def send_reminder_email(facture):
 def send_validation_email(facture):
     from app import mail
 
-    client_email = get_client_by_id(facture.client_id)[0].json['client']['email']
+    contrat = get_contrat_by_id(facture.contrat_id)[0].json['contrat']
+    client_id = contrat['client_id']
+    client_email = get_client_by_id(client_id)[0].json['client']['email']
+
+   # client_email = get_client_by_id(get_contrat_by_id(facture.contrat_id)[0].json['contrat']['client_id'])[0].json['client']['email']
     msg = Message(
         "Validation de Facture",
         sender=current_app.config['MAIL_USERNAME'],
         recipients=[client_email]
     )
-    msg.body = f"Bonjour, vous avez une nouvelle facture {facture.numero} à valider . Cliquer sur ce lien SVP : http://localhost:5173/factures/{facture.id}/valider  ."
+    msg.body = f"Bonjour, vous avez une nouvelle facture {facture.numero} à valider. Cliquez sur ce lien SVP : http://localhost:5173/factures/valider/{client_id}."    
     mail.send(msg)
 
 
 @facture.route('/send-reminder')
 def schedule_reminders():
     
-    factures = Factures.query.filter(Factures.statut !='payé').all()
+    factures = Factures.query.filter(Factures.statut !='Payée').all()
     now = datetime.now()
     for facture in factures:
         if facture.echeance - now <= timedelta(days=7):

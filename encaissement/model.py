@@ -25,7 +25,8 @@ class Encaissements(db.Model):
             'facture_id' : self.facture_id,
             'actif' : self.actif,
             'facture' : get_facture_by_id(self.facture_id)[0].json['facture']['numero'],
-            'client':  get_client_by_id(get_facture_by_id(self.facture_id)[0].json['facture']['client_id'])[0].json['client']['username']
+            'client':  get_client_by_id(get_facture_by_id(self.facture_id)[0].json['facture']['client_id'])[0].json['client']['username'],
+            'contrat' : get_contrat_by_id(get_facture_by_id(self.facture_id)[0].json['facture']['contrat_id'])[0].json['contrat']['reference']
         }
 
 

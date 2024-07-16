@@ -57,7 +57,7 @@ def create_client():
 #@login_required
 def get_all_clients():
     #return list(map(lambda x: x.serialize(), Users.query.all()))
-    clients = Users.query.all()
+    clients = Users.query.order_by(Users.username).all()
     serialized_clients = [client.serialize() for client in clients]
     return jsonify(serialized_clients)
 
@@ -65,7 +65,7 @@ def get_all_clients():
 @user.route('/getAllActif', methods=['GET'])
 #@login_required
 def get_all_actif_clients():
-    actif_clients = Users.query.filter_by(actif=True).all()
+    actif_clients = Users.query.filter_by(actif=True).order_by(Users.username).all()
     serialized_clients = [client.serialize() for client in actif_clients]
     return jsonify(serialized_clients)
 
@@ -73,16 +73,19 @@ def get_all_actif_clients():
 @user.route('/getAllArchived', methods=['GET'])
 #@login_required
 def get_all_archived_clients():
-    archived_clients = Users.query.filter_by(actif=False).all()
+    archived_clients = Users.query.filter_by(actif=False).order_by(Users.username).all()
     serialized_clients = [client.serialize() for client in archived_clients]
     return jsonify(serialized_clients)
     #return list(map(lambda x: x.serialize(), archived_clients))
+
+
+
 
 #GetClientsByName
 @user.route('/getClientByName/<string:name>', methods=['GET'])
 #@login_required
 def get_clients_by_name(name):
-    clients = Users.query.filter(Users.username.ilike(f'%{name}%')).all()
+    clients = Users.query.filter(Users.username.ilike(f'%{name}%')).order_by(Users.username).all()
     if not clients:
         return jsonify({"message": "aucun client trouvé avec ce nom"}), 404  
     serialized_clients = [client.serialize() for client in clients]

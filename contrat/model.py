@@ -14,13 +14,13 @@ class Contrats(db.Model):
     dateRappel = db.Column(db.DateTime,nullable=False)
     
     client_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    
+    factures1 = db.relationship('Factures', backref='contrat', lazy=True)
+
 
     def serialize(self):
         return {
             'id': self.id,
             'reference': self.reference,
-            'delai': self.delai,
             'dateDebut': self.dateDebut,
             'dateFin': self.dateFin,
             'delai':self.delai,

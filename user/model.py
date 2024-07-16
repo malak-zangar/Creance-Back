@@ -13,7 +13,7 @@ class Users(db.Model):
 
     actif = db.Column(db.Boolean,nullable=False)
 
-    factures1 = db.relationship('Factures', backref='client', lazy=True)
+    #factures1 = db.relationship('Factures', backref='client', lazy=True)
     contrats1 = db.relationship('Contrats', backref='client', lazy=True)
 
     def serialize(self):

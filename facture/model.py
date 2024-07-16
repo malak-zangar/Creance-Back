@@ -1,3 +1,4 @@
+from contrat.view import get_contrat_by_id
 from db import db
 from datetime import datetime
 from user.view import *
@@ -21,8 +22,8 @@ class Factures(db.Model):
     encaissements_facture = db.relationship('Encaissements', backref='facture', lazy=True)
 
     # Clé étrangère vers Users.id
-    client_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    
+    #client_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    contrat_id = db.Column(db.Integer, db.ForeignKey('contrats.id'), nullable=False)
 
 
     def serialize(self):
@@ -41,8 +42,10 @@ class Factures(db.Model):
             'actionRecouvrement' : self.actionRecouvrement,
             'actif' : self.actif,
             'devise': self.devise,
-            'client_id' : self.client_id,
-            'client': get_client_by_id(self.client_id)[0].json['client']['username'],
+            'contrat_id' : self.contrat_id,
+            'contrat' : get_contrat_by_id(self.contrat_id)[0].json['contrat']['reference'],
+            'client_id' : get_contrat_by_id(self.contrat_id)[0].json['contrat']['client_id'],
+            'client': get_client_by_id(get_contrat_by_id(self.contrat_id)[0].json['contrat']['client_id'])[0].json['client']['username'],
         }
 
 
