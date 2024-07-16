@@ -8,8 +8,8 @@ from contrat.view import get_contrat_by_id
 from facture.model import Factures
 from db import db
 from user.view import *
-from flask_login import login_required
 from sqlalchemy import cast, Integer
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 
 facture = Blueprint('facture', __name__, url_prefix='/facture')
@@ -17,7 +17,8 @@ facture = Blueprint('facture', __name__, url_prefix='/facture')
 
 #Add new facture
 @facture.route('/create', methods=['POST'])
-#@login_required
+@jwt_required()
+
 def create_facture():
     data = request.get_json()
     numero = data.get("numero")
@@ -94,7 +95,8 @@ def create_facture():
 
 #GetAll factures
 @facture.route('/getAll', methods=['GET'])
-#@login_required
+@jwt_required()
+
 def get_all_factures():
     factures = Factures.query.order_by(Factures.date.desc()).all()
     serialized_factures = [facture.serialize() for facture in factures]
@@ -102,7 +104,8 @@ def get_all_factures():
 
 #GetActiffactures
 @facture.route('/getAllActif', methods=['GET'])
-#@login_required
+@jwt_required()
+
 def get_all_actif_factures():
     actif_factures = Factures.query.filter_by(actif=True).order_by(Factures.date.desc()).all()
     serialized_factures = [facture.serialize() for facture in actif_factures]
@@ -110,7 +113,8 @@ def get_all_actif_factures():
 
 #GetArchivedfactures
 @facture.route('/getAllArchived', methods=['GET'])
-#@login_required
+@jwt_required()
+
 def get_all_archived_factures():
     archived_factures = Factures.query.filter_by(actif=False).order_by(Factures.date.desc()).all()
     serialized_factures = [facture.serialize() for facture in archived_factures]
@@ -119,7 +123,8 @@ def get_all_archived_factures():
 
 #GetfactureByID
 @facture.route('/getByID/<int:id>',methods=['GET'])
-#@login_required
+@jwt_required()
+
 def get_facture_by_id(id):
     facture = Factures.query.get(id)
 
@@ -159,7 +164,8 @@ def get_clients_with_active_unpaid_invoices():
 
 #GetFacturesByClient
 @facture.route('/getByClient/<int:client_id>', methods=['GET'])
-#@login_required
+@jwt_required()
+
 def get_factures_by_client(client_id):
     contrats = Contrats.query.filter_by(client_id=client_id).all()
     
@@ -177,7 +183,8 @@ def get_factures_by_client(client_id):
 
 #GetFacturesByClient
 @facture.route('getByClient/actif/<int:client_id>', methods=['GET'])
-#@login_required
+@jwt_required()
+
 def get_actif_factures_by_client(client_id):
 
     contrats = Contrats.query.filter_by(client_id=client_id).all()
@@ -200,7 +207,8 @@ def get_actif_factures_by_client(client_id):
 
 #GetfactureBynumero
 @facture.route('/getByNumero/<string:numero>',methods=['GET'])
-#@login_required
+@jwt_required()
+
 def get_facture_by_numero(numero):
     facture = Factures.query.filter(cast(numero, Integer) == numero).first()
 
@@ -214,7 +222,8 @@ def get_facture_by_numero(numero):
 
 #Archivefacture
 @facture.route('/archiveFacture/<int:id>',methods=['PUT'])
-#@login_required
+@jwt_required()
+
 def archiverFacture(id):
     facture = Factures.query.get(id)
 
@@ -232,7 +241,8 @@ def archiverFacture(id):
     
 #activerfacture
 @facture.route('/restaureFacture/<int:id>',methods=['PUT'])
-#@login_required
+@jwt_required()
+
 def activerFacture(id):
     facture = Factures.query.get(id)
 
@@ -252,7 +262,8 @@ def activerFacture(id):
 
 #Updatefacture
 @facture.route('/updateFacture/<int:id>',methods=['PUT'])
-#@login_required
+@jwt_required()
+
 def updateFacture(id):
     facture = Factures.query.get(id)
 
@@ -380,7 +391,8 @@ def updateFactureAfterEncaissement(id,montant_encaisse):
 
 #MarquerPayéfacture
 @facture.route('/marquerpayeFacture/<int:id>',methods=['PUT'])
-#@login_required
+@jwt_required()
+
 def marquerpayeFacture(id):
     
 
@@ -407,7 +419,8 @@ def marquerpayeFacture(id):
 
 
 @facture.route('/report/<int:facture_id>',methods=['GET'])
-#@login_required
+@jwt_required()
+
 def report(facture_id):
     facture = Factures.query.get_or_404(facture_id)
     facture_data = facture.serialize()

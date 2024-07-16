@@ -6,13 +6,15 @@ from datetime import datetime, timedelta
 from user.model import Users
 from db import db
 import validators
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 
 user = Blueprint('user', __name__, url_prefix='/user')
 
 #Add new client
 @user.route('/create', methods=['POST'])
-#@login_required
+@jwt_required()
+
 def create_client():
     data = request.get_json()
     username = data.get("username")
@@ -54,16 +56,18 @@ def create_client():
 
 #GetAll Clients
 @user.route('/getAll', methods=['GET'])
-#@login_required
+@jwt_required()
 def get_all_clients():
     #return list(map(lambda x: x.serialize(), Users.query.all()))
+    current_user_id = get_jwt_identity()
     clients = Users.query.order_by(Users.username).all()
     serialized_clients = [client.serialize() for client in clients]
     return jsonify(serialized_clients)
 
 #GetActifClients
 @user.route('/getAllActif', methods=['GET'])
-#@login_required
+@jwt_required()
+
 def get_all_actif_clients():
     actif_clients = Users.query.filter_by(actif=True).order_by(Users.username).all()
     serialized_clients = [client.serialize() for client in actif_clients]
@@ -71,7 +75,8 @@ def get_all_actif_clients():
 
 #GetArchivedClients
 @user.route('/getAllArchived', methods=['GET'])
-#@login_required
+@jwt_required()
+
 def get_all_archived_clients():
     archived_clients = Users.query.filter_by(actif=False).order_by(Users.username).all()
     serialized_clients = [client.serialize() for client in archived_clients]
@@ -83,7 +88,8 @@ def get_all_archived_clients():
 
 #GetClientsByName
 @user.route('/getClientByName/<string:name>', methods=['GET'])
-#@login_required
+@jwt_required()
+
 def get_clients_by_name(name):
     clients = Users.query.filter(Users.username.ilike(f'%{name}%')).order_by(Users.username).all()
     if not clients:
@@ -94,7 +100,8 @@ def get_clients_by_name(name):
 
 #GetClientByID
 @user.route('/getByID/<int:id>',methods=['GET'])
-#@login_required
+@jwt_required()
+
 def get_client_by_id(id):
     client = Users.query.get(id)
 
@@ -110,7 +117,8 @@ def get_client_by_id(id):
 
 #ArchiveClient
 @user.route('/archiveClient/<int:id>',methods=['PUT'])
-#@login_required
+@jwt_required()
+
 def archiverClient(id):
     client = Users.query.get(id)
 
@@ -128,7 +136,8 @@ def archiverClient(id):
     
 #activerClient
 @user.route('/activerClient/<int:id>',methods=['PUT'])
-#@login_required
+@jwt_required()
+
 def activerClient(id):
     client = Users.query.get(id)
 
@@ -147,7 +156,8 @@ def activerClient(id):
 
 #UpdateClient
 @user.route('/updateClient/<int:id>',methods=['PUT'])
-#@login_required
+@jwt_required()
+
 def updateClient(id):
     client = Users.query.get(id)
 
@@ -172,7 +182,8 @@ def updateClient(id):
 
 #export to csv
 @user.route('/export/csv',methods=['GET'])
-#@login_required
+@jwt_required()
+
 def export_csv():
     users = Users.query.all()
     users_list = [user.serialize() for user in users]
@@ -190,7 +201,8 @@ def export_csv():
 
 #export to csv
 @user.route('/export/csv/actifusers',methods=['GET'])
-#@login_required
+@jwt_required()
+
 def export_csv_actifusers():
     users = Users.query.filter_by(actif=True).all()
     users_list = [user.serialize() for user in users]
@@ -208,7 +220,8 @@ def export_csv_actifusers():
 
     #export to csv
 @user.route('/export/csv/nonactif',methods=['GET'])
-#@login_required
+@jwt_required()
+
 def export_csv_nonactifusers():
     users = Users.query.filter_by(actif=False).all()
     users_list = [user.serialize() for user in users]

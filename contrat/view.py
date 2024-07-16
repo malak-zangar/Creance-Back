@@ -7,6 +7,8 @@ from user.view import *
 from flask_login import login_required
 from sqlalchemy import cast, Integer
 import requests 
+from flask_jwt_extended import jwt_required, get_jwt_identity
+
 
 contrat = Blueprint('contrat', __name__, url_prefix='/contrat')
 
@@ -18,8 +20,9 @@ def activer_client(client_id):
 
 #Add new contrat
 @contrat.route('/create', methods=['POST'])
-#@login_required
+@jwt_required()
 def create_contrat():
+    current_user_id = get_jwt_identity()
     data = request.get_json()
     reference = data.get("reference")
     dateDebut = data.get("dateDebut")
@@ -73,7 +76,7 @@ def create_contrat():
 
 #GetAll contrats
 @contrat.route('/getAll', methods=['GET'])
-#@login_required
+@jwt_required()
 def get_all_contrats():
     contrats = Contrats.query.order_by(Contrats.dateDebut.desc()).all()
     serialized_contrats = [contrat.serialize() for contrat in contrats]
@@ -82,7 +85,8 @@ def get_all_contrats():
 
 #GetContratByID
 @contrat.route('/getByID/<int:id>',methods=['GET'])
-#@login_required
+@jwt_required()
+
 def get_contrat_by_id(id):
     contrat = Contrats.query.get(id)
 
@@ -96,7 +100,8 @@ def get_contrat_by_id(id):
 
 #GetcontratByreference
 @contrat.route('/getByReference/<string:reference>',methods=['GET'])
-#@login_required
+@jwt_required()
+
 def get_contrat_by_reference(reference):
     contrat = Contrats.query.filter(cast(reference, Integer) == reference).first()
 
@@ -111,7 +116,8 @@ def get_contrat_by_reference(reference):
 
 #GetcontratByclient
 @contrat.route('/getByClient/<int:id>',methods=['GET'])
-#@login_required
+@jwt_required()
+
 def get_contrat_by_client(id):
     contracts = Contrats.query.filter_by(client_id=id).order_by(Contrats.dateDebut.desc()).all()
 
@@ -123,7 +129,8 @@ def get_contrat_by_client(id):
  
 #UpdateContrat
 @contrat.route('/updateContrat/<int:id>',methods=['PUT'])
-#@login_required
+@jwt_required()
+
 def updateContrat(id):
     contrat = Contrats.query.get(id)
 
@@ -169,7 +176,8 @@ def updateContrat(id):
 
 
 @contrat.route('/report/<int:contrat_id>',methods=['GET'])
-#@login_required
+@jwt_required()
+
 def report(contrat_id):
     contrat = Contrats.query.get_or_404(contrat_id)
     contrat_data = contrat.serialize()

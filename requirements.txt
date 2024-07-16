@@ -20,3 +20,4 @@ Flask-Mail
 APScheduler
 pandas
 requests
+flask_jwt_extended
