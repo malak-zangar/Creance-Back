@@ -3,9 +3,17 @@ from flask import Blueprint, request, jsonify, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from auth.model import Auth
+from jwt.exceptions import ExpiredSignatureError  # Import from jwt.exceptions
 from db import db
 
 auth = Blueprint('auth', __name__, url_prefix='/auth')
+
+
+@auth.errorhandler(ExpiredSignatureError)
+def handle_expired_token_error(error):
+    return jsonify({'message': 'Token expiré, reconnectez-vous SVP.'}), 401
+
+
 
 @auth.route('/login', methods=['POST'])
 def login():
@@ -15,7 +23,7 @@ def login():
     user = Auth.query.filter_by(username=username).first()
     
     if user and check_password_hash(user.password, password):
-        access_token = create_access_token(identity=user.username, expires_delta=timedelta(hours=1))
+        access_token = create_access_token(identity=user.username, expires_delta=timedelta(hours=2))
         return jsonify(access_token=access_token), 200
     else:
         return jsonify({"erreur": "Invalid username or password"}), 401
@@ -46,7 +54,6 @@ def create_admin():
 @auth.route("/logout", methods=['POST'])
 @jwt_required()
 def logout():
-    # JWT tokens are stateless, so there's no built-in "logout" mechanism.
     return 'user logged out successfully'
 
 @auth.route("/protected", methods=['GET'])

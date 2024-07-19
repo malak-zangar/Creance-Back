@@ -1,28 +1,40 @@
-from flask import Blueprint, current_app, render_template, request, jsonify, make_response
+from logging import log
+from flask import Blueprint, current_app, render_template, request, jsonify, make_response 
 from datetime import date, datetime, timedelta
-import weasyprint
+import weasyprint 
 from contrat.model import Contrats
 from db import db
 from user.view import *
-from flask_login import login_required
-from sqlalchemy import cast, Integer
-import requests 
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from sqlalchemy import cast, Integer 
+import requests  
+from flask_jwt_extended import get_jwt, jwt_required, get_jwt_identity 
+from paramEntreprise.view import *
 
 
 contrat = Blueprint('contrat', __name__, url_prefix='/contrat')
 
 
-def activer_client(client_id):
+def activer_client(token, client_id):
+    headers = {
+        'Authorization': f'Bearer {token}'
+    }
     url = f"http://localhost:5555/user/activerClient/{client_id}"
-    response = requests.put(url)
+    response = requests.put(url, headers=headers)
     return response
+
+def get_latest_paramentreprise(token):
+    headers = {
+        'Authorization': f'Bearer {token}'
+    }
+    response = requests.get('http://localhost:5555/paramentreprise/getLatest', headers=headers)
+    if response.status_code == 200:
+        return response.json().get('paramentreprise', {}).get('id')
+    return None
 
 #Add new contrat
 @contrat.route('/create', methods=['POST'])
 @jwt_required()
 def create_contrat():
-    current_user_id = get_jwt_identity()
     data = request.get_json()
     reference = data.get("reference")
     dateDebut = data.get("dateDebut")
@@ -32,6 +44,19 @@ def create_contrat():
     dateProchaineAction = data.get("dateProchaineAction")
     dateRappel = data.get("dateRappel")
     client_id = int(data.get("client_id"))
+
+ # Extract the token from the Authorization header
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.startswith('Bearer '):
+        token = auth_header.split(' ')[1]
+    else:
+        return jsonify({"erreur": "Token d'authentification manquant"}), 401
+
+    paramentrep_id = get_latest_paramentreprise(token)
+    if paramentrep_id is None:
+        return jsonify({"erreur": "Erreur lors de la récupération du dernier paramentreprise"}), 500
+
+    
 
     if delai < 1 :
         return jsonify({
@@ -57,17 +82,16 @@ def create_contrat():
     if Contrats.query.filter_by(reference=reference).first() is not None:
         return jsonify({'erreur': "Référence de contrat existe déja"}), 409
     
-    response = activer_client(client_id)
+    response = activer_client(token, client_id)
     if response.status_code != 200:
         return jsonify({
-                "erreur": "Échec dans l'activation du client"
-            }), 500
+            "erreur": "Échec dans l'activation du client"
+        }), 500
 
     print(data)
     new_contrat = Contrats(reference=reference, dateDebut=dateDebut,dateFin=dateFin,delai=delai,
                 client_id=client_id,conditionsFinancieres=conditionsFinancieres,prochaineAction=prochaineAction,
-                dateProchaineAction=dateProchaineAction,dateRappel=dateRappel  )
-    #get_client_by_id(client_id)[0].json['client']['actif']=True
+                dateProchaineAction=dateProchaineAction,dateRappel=dateRappel,paramentrep_id=paramentrep_id  )
     print(new_contrat)
     db.session.add(new_contrat)
     db.session.commit()
@@ -157,7 +181,6 @@ def updateContrat(id):
     contrat.dateProchaineAction= parse_date(data.get("dateProchaineAction",contrat.dateProchaineAction))
     contrat.dateRappel = parse_date(data.get("dateRappel",contrat.dateRappel)) 
     contrat.prochaineAction = data.get("prochaineAction",contrat.prochaineAction)
-    
     try:
         contrat.dateFin = contrat.dateDebut + timedelta(days=int(contrat.delai))
 

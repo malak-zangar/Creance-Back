@@ -14,6 +14,7 @@ from user.view import user
 from facture.view import facture, schedule_reminders
 from encaissement.view import encaissement
 from contrat.view import contrat
+from paramEntreprise.view import paramentreprise
 from db import db
 
 
@@ -22,8 +23,7 @@ load_dotenv(dotenv_path=".env")
 app = Flask(__name__)
 
 CORS(app)
-CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
-
+CORS(app, resources={r"/*": {"origins": "http://localhost:5173", "supports_credentials": True}})
 
 app.config['CSRF_ENABLED'] = True
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
@@ -42,6 +42,7 @@ app.config['MAIL_PASSWORD'] = os.getenv("MAIL_PASSWORD")
 
 app.config['JWT_SECRET_KEY'] = os.getenv("JWT_SECRET_KEY")  # Change this to a strong secret key
 
+
 from flask_mail import Mail
 
 mail = Mail(app)
@@ -52,6 +53,7 @@ app.register_blueprint(user)
 app.register_blueprint(facture)
 app.register_blueprint(encaissement)
 app.register_blueprint(contrat)
+app.register_blueprint(paramentreprise)
 
 jwt = JWTManager(app)
 
@@ -68,6 +70,7 @@ def create_tables():
 @login_manager.user_loader
 def load_user(user_id):
     return Auth.query.get(int(user_id))
+
 
 handler = logging.StreamHandler()
 handler.setLevel(logging.INFO)

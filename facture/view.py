@@ -425,7 +425,6 @@ def report(facture_id):
     facture = Factures.query.get_or_404(facture_id)
     facture_data = facture.serialize()
 
-
     html = render_template('facture_report.html', facture=facture_data)
     
     pdf = weasyprint.HTML(string=html).write_pdf()

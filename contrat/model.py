@@ -1,6 +1,7 @@
 from db import db
 from datetime import datetime
 from user.view import *
+from paramEntreprise.view import *
 
 class Contrats(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -15,7 +16,7 @@ class Contrats(db.Model):
     
     client_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     factures1 = db.relationship('Factures', backref='contrat', lazy=True)
-
+    paramentrep_id = db.Column(db.Integer, db.ForeignKey('param_entreprise.id'), nullable=False)
 
     def serialize(self):
         return {
@@ -29,7 +30,7 @@ class Contrats(db.Model):
             'dateProchaineAction' : self.dateProchaineAction,
             'dateRappel' : self.dateRappel,
             'client_id' : self.client_id,
-            'client': get_client_by_id(self.client_id)[0].json['client']['username']
-        }
+            'client': get_client_by_id(self.client_id)[0].json['client']['username'],
+            'paramentrep_id': self.paramentrep_id        }
 
 
