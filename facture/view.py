@@ -27,7 +27,6 @@ def create_facture():
     montant = float(data.get("montant"))
     montantEncaisse = float(data.get("montantEncaisse"))
     actionRecouvrement = data.get("actionRecouvrement")
-    devise = data.get("devise")
     #client_id = int(data.get("client_id"))
     contrat_id = int(data.get("contrat_id"))
     actif = False
@@ -39,7 +38,7 @@ def create_facture():
         }), 400
 
 
-    if not (numero and devise and date and delai and montant and montantEncaisse is not None and actionRecouvrement and contrat_id ):
+    if not (numero and date and delai and montant and montantEncaisse is not None and actionRecouvrement and contrat_id ):
         return jsonify({
             "erreur": "svp entrer toutes les données"
         }), 400
@@ -85,7 +84,7 @@ def create_facture():
 
     new_facture = Factures(numero=numero, date=date,echeance=echeance,statut=statut,delai=delai,montant=montant,
                 montantEncaisse=montantEncaisse, solde=solde, retard=retard, dateFinalisation=dateFinalisation,
-                devise=devise, actionRecouvrement=actionRecouvrement, actif=actif ,contrat_id=contrat_id )
+                 actionRecouvrement=actionRecouvrement, actif=actif ,contrat_id=contrat_id )
     db.session.add(new_facture)
     db.session.commit()
     send_validation_email(new_facture)
@@ -295,7 +294,6 @@ def updateFacture(id):
     facture.solde = float(data.get("solde",facture.solde))
     facture.actionRecouvrement = data.get("actionRecouvrement",facture.actionRecouvrement)
     facture.actif = data.get("actif",facture.actif)
-    facture.devise = data.get("devise",facture.devise)
 
 
     if facture.montantEncaisse > facture.montant :

@@ -1,3 +1,4 @@
+import base64
 from logging import log
 from flask import Blueprint, current_app, render_template, request, jsonify, make_response 
 from datetime import date, datetime, timedelta
@@ -39,10 +40,14 @@ def create_contrat():
     reference = data.get("reference")
     dateDebut = data.get("dateDebut")
     delai = int(data.get("delai"))
-    conditionsFinancieres = data.get("conditionsFinancieres")
-    prochaineAction = data.get("prochaineAction")
-    dateProchaineAction = data.get("dateProchaineAction")
-    dateRappel = data.get("dateRappel")
+    devise = data.get("devise")
+    type = data.get("type")
+    total = data.get("total")
+    prixJourHomme = data.get("prixJourHomme")
+    typeFrequenceFacturation = data.get("typeFrequenceFacturation")   
+    detailsFrequence=data.get("detailsFrequence")
+    montantParMois=data.get("montantParMois")
+    contratFile = data.get('contratFile')
     client_id = int(data.get("client_id"))
 
  # Extract the token from the Authorization header
@@ -64,7 +69,7 @@ def create_contrat():
         }), 400
 
 
-    if not (reference and dateDebut and delai and client_id ):
+    if not (reference and type and typeFrequenceFacturation and devise and dateDebut and delai and client_id ):
         return jsonify({
             "erreur": "svp entrer toutes les données"
         }), 400
@@ -89,9 +94,15 @@ def create_contrat():
         }), 500
 
     print(data)
-    new_contrat = Contrats(reference=reference, dateDebut=dateDebut,dateFin=dateFin,delai=delai,
-                client_id=client_id,conditionsFinancieres=conditionsFinancieres,prochaineAction=prochaineAction,
-                dateProchaineAction=dateProchaineAction,dateRappel=dateRappel,paramentrep_id=paramentrep_id  )
+
+    pdf_file = None
+    if contratFile:
+        pdf_file = base64.b64decode(contratFile)
+
+
+    new_contrat = Contrats(reference=reference,devise=devise, dateDebut=dateDebut,dateFin=dateFin,delai=delai,contratFile=pdf_file,
+                client_id=client_id,type=type,total=total,prixJourHomme=prixJourHomme,typeFrequenceFacturation=typeFrequenceFacturation,
+                detailsFrequence=detailsFrequence,montantParMois=montantParMois,paramentrep_id=paramentrep_id  )
     print(new_contrat)
     db.session.add(new_contrat)
     db.session.commit()
@@ -105,6 +116,33 @@ def get_all_contrats():
     contrats = Contrats.query.order_by(Contrats.dateDebut.desc()).all()
     serialized_contrats = [contrat.serialize() for contrat in contrats]
     return make_response(jsonify(serialized_contrats))
+
+# Get contracts where end date is less than the current date
+@contrat.route('/getExpired', methods=['GET'])
+@jwt_required()
+def get_expired_contrats():
+    current_date = datetime.now().date()
+    expired_contrats = Contrats.query.filter(Contrats.dateFin < current_date).order_by(Contrats.dateFin.desc()).all()
+    if not expired_contrats:
+        return jsonify({"message": "Aucun contrat expiré trouvé"}), 404
+
+    serialized_expired_contrats = [contrat.serialize() for contrat in expired_contrats]
+   # return jsonify({"message": "Contrats expirés trouvés", "contracts": serialized_expired_contrats}), 200
+    return make_response(jsonify(serialized_expired_contrats))
+
+# GetcontractsActif
+@contrat.route('/getActif', methods=['GET'])
+@jwt_required()
+def get_actif_contrats():
+    current_date = datetime.now().date()
+    actif_contrats = Contrats.query.filter(Contrats.dateFin >= current_date).order_by(Contrats.dateFin.desc()).all()
+    if not actif_contrats:
+        return jsonify({"message": "Aucun contrat actif trouvé"}), 404
+
+    serialized_due_today_contrats = [contrat.serialize() for contrat in actif_contrats]
+   # return jsonify({"message": "Contrats actifs trouvés", "contracts": serialized_due_today_contrats}), 200
+    return make_response(jsonify(serialized_due_today_contrats))
+
 
 
 #GetContratByID
@@ -174,13 +212,18 @@ def updateContrat(id):
             raise ValueError("Invalid date format")
 
     data = request.get_json()
+    contratFile = data.get('contratFile')
     contrat.reference = data.get("reference",contrat.reference)
     contrat.dateDebut= parse_date(data.get("dateDebut",contrat.dateDebut))
-    contrat.conditionsFinancieres = data.get("conditionsFinancieres",contrat.conditionsFinancieres)
     contrat.delai = data.get("delai",contrat.delai)
-    contrat.dateProchaineAction= parse_date(data.get("dateProchaineAction",contrat.dateProchaineAction))
-    contrat.dateRappel = parse_date(data.get("dateRappel",contrat.dateRappel)) 
-    contrat.prochaineAction = data.get("prochaineAction",contrat.prochaineAction)
+    contrat.devise = data.get("devise",contrat.devise)
+    contrat.type = data.get("type")
+    contrat.total = data.get("total")
+    contrat.prixJourHomme = data.get("prixJourHomme")
+    contrat.typeFrequenceFacturation = data.get("typeFrequenceFacturation")
+    contrat.detailsFrequence = data.get("detailsFrequence")
+    contrat.montantParMois = data.get("montantParMois")
+    
     try:
         contrat.dateFin = contrat.dateDebut + timedelta(days=int(contrat.delai))
 
@@ -188,6 +231,10 @@ def updateContrat(id):
         return jsonify({
             "erreur": "Format de date ou délai invalide"
         }), 400
+
+    if contratFile:
+        contrat.contratFile = base64.b64decode(contratFile)
+
 
     try:
         db.session.commit()
@@ -198,20 +245,17 @@ def updateContrat(id):
     
 
 
-@contrat.route('/report/<int:contrat_id>',methods=['GET'])
+@contrat.route('/contratFile/<int:contrat_id>/<string:reference>',methods=['GET'])
 @jwt_required()
 
-def report(contrat_id):
-    contrat = Contrats.query.get_or_404(contrat_id)
-    contrat_data = contrat.serialize()
-
-
-    html = render_template('contrat_report.html', contrat=contrat_data)
+def report(contrat_id,reference):
     
-    pdf = weasyprint.HTML(string=html).write_pdf()
+    contrat = Contrats.query.get(contrat_id)
+    if not contrat or not contrat.contratFile:
+        return jsonify({"message": "PDF non trouvé pour ce contrat"}), 404
 
-    response = make_response(pdf)
+    response = make_response(contrat.contratFile)
     response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = f'inline; filename=report_contrat_{contrat_id}.pdf'
+    response.headers['Content-Disposition'] = f'inline; filename=contrat_{reference}.pdf'
 
     return response
