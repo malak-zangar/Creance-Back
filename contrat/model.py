@@ -38,7 +38,23 @@ class Contrats(db.Model):
             'devise': self.devise,
             'contratFile': base64.b64encode(self.contratFile).decode('utf-8') if self.contratFile else None,
             'client_id' : self.client_id,
-            'client': get_client_by_id(self.client_id)[0].json['client']['username'],
+            #'client': get_client_by_id(self.client_id)[0].json['client']['username'],
+            'client': self.client.username,  # Use the relationship to get the client's username
             'paramentrep_id': self.paramentrep_id        }
 
-
+    def serialize_for_export(self):
+            return {
+                'id': self.id,
+                'reference': self.reference,
+                'dateDebut': self.dateDebut,
+                'dateFin': self.dateFin,
+                'delai':self.delai,
+                'type':self.type,
+                'total':self.total,
+                'prixJourHomme':self.prixJourHomme,
+                'typeFrequenceFacturation':self.typeFrequenceFacturation,
+                'detailsFrequence' : self.detailsFrequence,
+                'montantParMois':self.montantParMois,
+                'devise': self.devise,
+                'paramentrep_id': self.paramentrep_id     
+            }

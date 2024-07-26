@@ -47,4 +47,23 @@ class Factures(db.Model):
             'client': get_client_by_id(get_contrat_by_id(self.contrat_id)[0].json['contrat']['client_id'])[0].json['client']['username'],
         }
 
+    def serialize_for_export(self):
+        return {
+            'id': self.id,
+            'numero': self.numero,
+            'date': self.date,
+            'echeance': self.echeance,
+            'statut': self.statut,
+            'delai':self.delai,
+            'montant' : self.montant,
+            'montantEncaisse' : self.montantEncaisse,
+            'solde' : self.solde,
+            'retard' : self.retard,
+            'dateFinalisation' : self.dateFinalisation,
+            'actionRecouvrement' : self.actionRecouvrement,
+            'actif' : self.actif,
+            'contrat' : get_contrat_by_id(self.contrat_id)[0].json['contrat']['reference'],
+            'devise' : get_contrat_by_id(self.contrat_id)[0].json['contrat']['devise'],
+            'client': get_client_by_id(get_contrat_by_id(self.contrat_id)[0].json['contrat']['client_id'])[0].json['client']['username'],
+        }
 

@@ -189,10 +189,23 @@ def get_contrat_by_client(id):
     serialized_contracts = [contrat.serialize() for contrat in contracts]
     return jsonify({"message": "Contrats trouvés pour le client", "contracts": serialized_contracts}), 200
  
+#GetActualcontratByclient
+@contrat.route('/getActualByClient/<int:id>',methods=['GET'])
+@jwt_required()
+def get_actual_contrat_by_client(id):
+    current_date = datetime.now().date()
+    contracts = Contrats.query.filter(Contrats.client_id == id,Contrats.dateDebut <= current_date, Contrats.dateFin >= current_date).order_by(Contrats.dateDebut.desc()).all()
+
+    if not contracts:
+        return jsonify({"message": "Aucun contrat actuel trouvé pour ce client"}), 404
+
+    serialized_contracts = [contrat.serialize() for contrat in contracts]
+    return jsonify({"message": "Contrats actuels trouvés pour le client", "contracts": serialized_contracts}), 200
+
+
 #UpdateContrat
 @contrat.route('/updateContrat/<int:id>',methods=['PUT'])
 @jwt_required()
-
 def updateContrat(id):
     contrat = Contrats.query.get(id)
 
@@ -259,3 +272,4 @@ def report(contrat_id,reference):
     response.headers['Content-Disposition'] = f'inline; filename=contrat_{reference}.pdf'
 
     return response
+

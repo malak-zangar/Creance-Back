@@ -2,7 +2,7 @@ import io
 from flask import Blueprint, Response, request, jsonify, make_response
 from flask_login import login_required
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from user.model import Users
 from db import db
 import validators
@@ -23,9 +23,11 @@ def create_client():
     phone = data.get("phone")
     identifiantFiscal=data.get("identifiantFiscal")
     adresse = data.get("adresse")
+    dateCreation = data.get("dateCreation")
+
     actif = False
 
-    if not (username and email and phone and adresse and identifiantFiscal and emailcc):
+    if not (username and dateCreation and email and phone and adresse and identifiantFiscal and emailcc):
         return jsonify({
             "erreur": "svp entrer toutes les données nécessaires"
         }), 400
@@ -48,7 +50,7 @@ def create_client():
 
 
     new_client = Users(username=username, email=email,phone=phone,adresse=adresse,identifiantFiscal=identifiantFiscal,
-                       emailcc=emailcc,actif=actif)
+                       emailcc=emailcc,actif=actif, dateCreation=dateCreation)
     db.session.add(new_client)
     db.session.commit()
     return make_response(jsonify({"message": "client created successfully", "client": new_client.serialize()}), 201)
@@ -60,7 +62,7 @@ def create_client():
 def get_all_clients():
     #return list(map(lambda x: x.serialize(), Users.query.all()))
     current_user_id = get_jwt_identity()
-    clients = Users.query.order_by(Users.username).all()
+    clients = Users.query.order_by(Users.dateCreation.desc()).all()
     serialized_clients = [client.serialize() for client in clients]
     return jsonify(serialized_clients)
 
@@ -69,7 +71,7 @@ def get_all_clients():
 @jwt_required()
 
 def get_all_actif_clients():
-    actif_clients = Users.query.filter_by(actif=True).order_by(Users.username).all()
+    actif_clients = Users.query.filter_by(actif=True).order_by(Users.dateCreation.desc()).all()
     serialized_clients = [client.serialize() for client in actif_clients]
     return jsonify(serialized_clients)
 
@@ -78,7 +80,7 @@ def get_all_actif_clients():
 @jwt_required()
 
 def get_all_archived_clients():
-    archived_clients = Users.query.filter_by(actif=False).order_by(Users.username).all()
+    archived_clients = Users.query.filter_by(actif=False).order_by(Users.dateCreation.desc()).all()
     serialized_clients = [client.serialize() for client in archived_clients]
     return jsonify(serialized_clients)
     #return list(map(lambda x: x.serialize(), archived_clients))
@@ -104,12 +106,9 @@ def get_clients_by_name(name):
 
 def get_client_by_id(id):
     client = Users.query.get(id)
-
     if not client:
-        
         return jsonify({"message": "Client n'existe pas"}), 404
 
-    
     return jsonify({
         'message': "client existe :",
         'client': client.serialize()
@@ -164,6 +163,19 @@ def updateClient(id):
     if not client:
         return jsonify({"message": "client n'existe pas"}), 404
     
+    def parse_date(date_input):
+        if isinstance(date_input, str):
+            try:
+                return datetime.strptime(date_input, '%Y-%m-%d').date()
+            except ValueError:
+                raise ValueError("Invalid date format")
+        elif isinstance(date_input, datetime):
+            return date_input.date()
+        elif isinstance(date_input, date):
+            return date_input
+        else:
+            raise ValueError("Invalid date format")
+
     data = request.get_json()
     client.username = data.get('username', client.username)
     client.email = data.get('email', client.email)
@@ -172,6 +184,7 @@ def updateClient(id):
     client.actif = data.get('actif',client.actif)
     client.emailcc=data.get('emailcc',client.emailcc)
     client.identifiantFiscal= data.get('identifiantFiscal', client.identifiantFiscal)
+    client.dateCreation= parse_date(data.get("dateCreation",client.dateCreation))
 
     try:
         db.session.commit()
@@ -205,7 +218,7 @@ def export_csv():
 
 def export_csv_actifusers():
     users = Users.query.filter_by(actif=True).all()
-    users_list = [user.serialize() for user in users]
+    users_list = [user.serialize_for_export() for user in users]
     df = pd.DataFrame(users_list)
     output = io.StringIO()
     df.to_csv(output, index=False)
@@ -223,16 +236,22 @@ def export_csv_actifusers():
 @jwt_required()
 
 def export_csv_nonactifusers():
-    users = Users.query.filter_by(actif=False).all()
-    users_list = [user.serialize() for user in users]
-    df = pd.DataFrame(users_list)
-    output = io.StringIO()
-    df.to_csv(output, index=False)
-    output.seek(0)
-    return Response(
-        output.getvalue(),
-        mimetype='text/csv',
-        headers={
-            "Content-Disposition": "attachment;filename=nonactifusers.csv"
-        }
-    )
+    try :
+        users = Users.query.filter_by(actif=False).all()
+        #users_list = [user.serialize() for user in users]
+        users_list = [user.serialize_for_export() for user in users]
+        df = pd.DataFrame(users_list)
+        output = io.StringIO()
+        df.to_csv(output, index=False)
+        output.seek(0)
+        print("CSV generated successfully")
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={
+                "Content-Disposition": "attachment;filename=nonactifusers.csv"
+            }
+        )
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"error": str(e)}), 500

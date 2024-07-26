@@ -64,18 +64,29 @@ def create_facture():
     today = datetime.today()
     retard = (today - echeance).days if (today > echeance and solde != 0) else 0
 
+    dateFinalisation = None
+    
+    # if retard != 0 :
+    #     statut = "Échue"
+    # elif solde == 0:
+    #     statut = "Payée"
+    #     dateFinalisation = today.strftime('%Y-%m-%d')
+    # elif solde == montant:
+    #     statut = "Non payée"
+    #     dateFinalisation = None
+    # else:
+    #     statut = "En cours"
+    #     dateFinalisation = None
 
-    if retard != 0 :
-        statut = "Échue"
-    elif solde == 0:
+
+    if solde == 0:
         statut = "Payée"
         dateFinalisation = today.strftime('%Y-%m-%d')
-    elif solde == montant:
-        statut = "Non payée"
-        dateFinalisation = None
+    elif retard != 0 :
+        statut = "Échue"
     else:
-        statut = "En cours"
-        dateFinalisation = None
+        statut = "Non échue"
+        dateFinalisation = None    
     
     if Factures.query.filter_by(numero=numero).first() is not None:
         return jsonify({'erreur': "Numéro de facture existe déja"}), 409
@@ -83,8 +94,8 @@ def create_facture():
 
 
     new_facture = Factures(numero=numero, date=date,echeance=echeance,statut=statut,delai=delai,montant=montant,
-                montantEncaisse=montantEncaisse, solde=solde, retard=retard, dateFinalisation=dateFinalisation,
-                 actionRecouvrement=actionRecouvrement, actif=actif ,contrat_id=contrat_id )
+                montantEncaisse=montantEncaisse, solde=solde, retard=retard, 
+                 actionRecouvrement=actionRecouvrement, actif=actif ,contrat_id=contrat_id,dateFinalisation=dateFinalisation )
     db.session.add(new_facture)
     db.session.commit()
     send_validation_email(new_facture)
@@ -193,7 +204,7 @@ def get_actif_factures_by_client(client_id):
     
     factures = Factures.query.filter(
             Factures.contrat_id.in_([contrat.id for contrat in contrats]),
-            Factures.actif == True,
+            Factures.actif == True, Factures.solde != 0,
     ).order_by(Factures.date.desc()).all()
 
     if not factures:
@@ -325,17 +336,16 @@ def updateFacture(id):
 
     facture.solde= facture.montant - facture.montantEncaisse
 
-    if facture.retard != 0 :
-        facture.statut = "Échue"
-    elif facture.solde == 0:
+
+    if facture.solde == 0:
         facture.statut = "Payée"
         facture.dateFinalisation = today.strftime('%Y-%m-%d')
-    elif facture.solde == facture.montant:
-        facture.statut = "Non payée"
-        facture.dateFinalisation = None
+    elif facture.retard != 0 :
+        facture.statut = "Échue"
     else:
-        facture.statut = "En cours"
-        facture.dateFinalisation = None
+        facture.statut = "Non échue"
+        facture.dateFinalisation = None  
+
     try:
         db.session.commit()
         return jsonify({"message": "facture modifiée avec succés"}), 200
@@ -365,19 +375,26 @@ def updateFactureAfterEncaissement(id,montant_encaisse):
 
 
 
-    if facture.retard != 0 :
-        facture.statut = "Échue"
-    elif facture.solde == 0:
+    # if facture.retard != 0 :
+    #     facture.statut = "Échue"
+    # elif facture.solde == 0:
+    #     facture.statut = "Payée"
+    #     facture.dateFinalisation = today.strftime('%Y-%m-%d')
+    # elif facture.solde == facture.montant:
+    #     facture.statut = "Non payée"
+    #     facture.dateFinalisation = None
+    # else:
+    #     facture.statut = "En cours"
+    #     facture.dateFinalisation = None
+
+    if facture.solde == 0:
         facture.statut = "Payée"
         facture.dateFinalisation = today.strftime('%Y-%m-%d')
-    elif facture.solde == facture.montant:
-        facture.statut = "Non payée"
-        facture.dateFinalisation = None
+    elif facture.retard != 0 :
+        facture.statut = "Échue"
     else:
-        facture.statut = "En cours"
-        facture.dateFinalisation = None
-
-
+        facture.statut = "Non échue"
+        facture.dateFinalisation = None    
     try:
         db.session.commit()
         return True, None  
@@ -472,3 +489,44 @@ def schedule_reminders():
         if facture.echeance - now <= timedelta(days=7):
             send_reminder_email(facture)
     return 'Reminders scheduled!'
+
+#GetPaidfactures
+@facture.route('/getAllPaid', methods=['GET'])
+@jwt_required()
+def get_all_paid_factures():
+    paid_factures = Factures.query.filter(Factures.statut =='Payée').order_by(Factures.dateFinalisation.desc()).all()
+    serialized_factures = [facture.serialize() for facture in paid_factures]
+    return jsonify(serialized_factures)
+
+#GetUnpaidfactures
+@facture.route('/getAllUnpaid', methods=['GET'])
+@jwt_required()
+def get_all_unpaid_factures():
+    unpaid_factures = Factures.query.filter(Factures.statut !='Payée').order_by(Factures.echeance.desc()).all()
+    serialized_factures = [facture.serialize() for facture in unpaid_factures]
+    return jsonify(serialized_factures)
+
+
+    #export to csv
+@facture.route('/export/csv',methods=['GET'])
+@jwt_required()
+
+def export_csv_factures():
+    try :
+        factures = Factures.query.filter(Factures.statut!='Payée').all()
+        factures_list = [facture.serialize_for_export() for facture in factures]
+        df = pd.DataFrame(factures_list)
+        output = io.StringIO()
+        df.to_csv(output, index=False)
+        output.seek(0)
+        print("CSV generated successfully")
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={
+                "Content-Disposition": "attachment;filename=facture_en_cours.csv"
+            }
+        )
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"error": str(e)}), 500
