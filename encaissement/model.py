@@ -23,6 +23,7 @@ class Encaissements(db.Model):
             'montantEncaisse' : self.montantEncaisse,
             'reference' : self.reference,
             'facture_id' : self.facture_id,
+            'devise' : get_contrat_by_id(get_facture_by_id(self.facture_id)[0].json['facture']['contrat_id'])[0].json['contrat']['devise'],
             'actif' : self.actif,
             'facture' : get_facture_by_id(self.facture_id)[0].json['facture']['numero'],
             'client':  get_client_by_id(get_facture_by_id(self.facture_id)[0].json['facture']['client_id'])[0].json['client']['username'],

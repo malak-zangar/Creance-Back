@@ -26,21 +26,22 @@ def create_encaissement():
         return jsonify({
             "erreur": "svp entrer toutes les données"
         }), 400
-
-    response = get_facture_by_numero(facture_numero)
-    if response[1] != 200:
-        return response[0]
-    facture_id = response[0].json['facture']['id']
-    #facture_date = response[0].json['facture']['date']
-
+    print(facture_numero)
+    # response = get_facture_by_id(facture_numero)
+    # if response[1] != 200:
+    #     return response[0]
+    # facture_id = response[0].json['facture']['id']
+    # #facture_date = response[0].json['facture']['date']
+    # print(response[0].json['facture'])
+    # print(facture_id)
     if Encaissements.query.filter_by(reference=reference).first() is not None:
         return jsonify({'erreur': "Référence d'encaissement existe déja"}), 409
 
 
 
     new_encaissement = Encaissements(modeReglement=modeReglement, date=date,montantEncaisse=montantEncaisse,reference=reference,
-       facture_id=facture_id,actif=actif)
-    date_facture = datetime.strptime(response[0].json['facture']['date'], '%a, %d %b %Y %H:%M:%S %Z')
+       facture_id=facture_numero,actif=actif)
+    date_facture = datetime.strptime(get_facture_by_id(facture_numero)[0].json['facture']['date'], '%a, %d %b %Y %H:%M:%S %Z')
     date_encaissement = datetime.strptime(date, '%Y-%m-%d')
     #facture_date1=datetime.strptime(facture_date, '%Y-%m-%d')
     if date_encaissement < date_facture :
@@ -51,7 +52,7 @@ def create_encaissement():
 
     db.session.add(new_encaissement)
 
-    update_facture_result = updateFactureAfterEncaissement(facture_id, montantEncaisse)
+    update_facture_result = updateFactureAfterEncaissement(facture_numero, montantEncaisse)
     if not update_facture_result[0]:
         db.session.rollback()  
         return update_facture_result[1], 500  
@@ -63,7 +64,6 @@ def create_encaissement():
 #GetAll encaissement
 @encaissement.route('/getAll', methods=['GET'])
 @jwt_required()
-
 def get_all_encaissements():
     encaissements = Encaissements.query.order_by(Encaissements.date.desc()).all()
 
@@ -78,7 +78,6 @@ def get_all_encaissements():
 #GetActifencaissements
 @encaissement.route('/getAllActif', methods=['GET'])
 @jwt_required()
-
 def get_all_actif_encaissements():
     actif_encaissements = Encaissements.query.filter_by(actif=True).all()
     serialized_encaissements = [facture.serialize() for facture in actif_encaissements]
@@ -87,7 +86,6 @@ def get_all_actif_encaissements():
 #GetArchivedencaissements
 @encaissement.route('/getAllArchived', methods=['GET'])
 @jwt_required()
-
 def get_all_archived_encaissements():
     archived_encaissements = Encaissements.query.filter_by(actif=False).all()
     serialized_encaissements = [encaissement.serialize() for encaissement in archived_encaissements]
@@ -97,7 +95,6 @@ def get_all_archived_encaissements():
 #GetfactureByID
 @encaissement.route('/getByID/<int:id>',methods=['GET'])
 @jwt_required()
-
 def get_encaissement_by_id(id):
     encaissement = Encaissements.query.get(id)
 
@@ -114,7 +111,6 @@ def get_encaissement_by_id(id):
 #Archivefacture
 @encaissement.route('/archiveEncaissement/<int:id>',methods=['PUT'])
 @jwt_required()
-
 def archiverEncaissement(id):
     encaissement = Encaissements.query.get(id)
 
@@ -133,7 +129,6 @@ def archiverEncaissement(id):
 #activerfacture
 @encaissement.route('/activerEncaissement/<int:id>',methods=['PUT'])
 @jwt_required()
-
 def activerEncaissement(id):
     encaissement = Encaissements.query.get(id)
 
@@ -154,7 +149,6 @@ def activerEncaissement(id):
 #Updatefacture
 @encaissement.route('/updateEncaissement/<int:id>',methods=['PUT'])
 @jwt_required()
-
 def updateEncaissement(id):
     encaissement = Encaissements.query.get(id)
 
@@ -180,7 +174,6 @@ def updateEncaissement(id):
 #generer recu de paiement
 @encaissement.route('/recu/<int:encaissement_id>',methods=['GET'])
 @jwt_required()
-
 def receipt(encaissement_id):
     encaissement = Encaissements.query.get_or_404(encaissement_id)
     encaissement_data = encaissement.serialize()

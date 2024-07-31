@@ -58,7 +58,6 @@ def get_all_paramentreps():
 #GetparamentrepByID
 @paramentreprise.route('/getByID/<int:id>',methods=['GET'])
 @jwt_required()
-
 def get_paramentrep_by_id(id):
     paramentreprise = ParamEntreprise.query.get(id)
 

@@ -18,7 +18,6 @@ facture = Blueprint('facture', __name__, url_prefix='/facture')
 #Add new facture
 @facture.route('/create', methods=['POST'])
 @jwt_required()
-
 def create_facture():
     data = request.get_json()
     numero = data.get("numero")
@@ -106,7 +105,6 @@ def create_facture():
 #GetAll factures
 @facture.route('/getAll', methods=['GET'])
 @jwt_required()
-
 def get_all_factures():
     factures = Factures.query.order_by(Factures.date.desc()).all()
     serialized_factures = [facture.serialize() for facture in factures]
@@ -115,7 +113,6 @@ def get_all_factures():
 #GetActiffactures
 @facture.route('/getAllActif', methods=['GET'])
 @jwt_required()
-
 def get_all_actif_factures():
     actif_factures = Factures.query.filter_by(actif=True).order_by(Factures.date.desc()).all()
     serialized_factures = [facture.serialize() for facture in actif_factures]
@@ -124,7 +121,6 @@ def get_all_actif_factures():
 #GetArchivedfactures
 @facture.route('/getAllArchived', methods=['GET'])
 @jwt_required()
-
 def get_all_archived_factures():
     archived_factures = Factures.query.filter_by(actif=False).order_by(Factures.date.desc()).all()
     serialized_factures = [facture.serialize() for facture in archived_factures]
@@ -134,7 +130,6 @@ def get_all_archived_factures():
 #GetfactureByID
 @facture.route('/getByID/<int:id>',methods=['GET'])
 @jwt_required()
-
 def get_facture_by_id(id):
     facture = Factures.query.get(id)
 
@@ -150,7 +145,7 @@ def get_facture_by_id(id):
 
 
 # Get clients with active unpaid invoices
-@facture.route('/getClientsWithActiveUnpaidInvoices', methods=['GET'])
+@facture.route('/getClientsWithUnpaidInvoices', methods=['GET'])
 def get_clients_with_active_unpaid_invoices():
     clients = Users.query.filter_by(actif=True).all()
     result = []
@@ -162,7 +157,6 @@ def get_clients_with_active_unpaid_invoices():
         if contrat_ids:
             unpaid_invoices = Factures.query.filter(
                 Factures.contrat_id.in_(contrat_ids),
-                Factures.actif == True,
                 Factures.statut != 'Payée'
             ).order_by(Factures.date.desc()).all()
 
@@ -175,7 +169,6 @@ def get_clients_with_active_unpaid_invoices():
 #GetFacturesByClient
 @facture.route('/getByClient/<int:client_id>', methods=['GET'])
 @jwt_required()
-
 def get_factures_by_client(client_id):
     contrats = Contrats.query.filter_by(client_id=client_id).all()
     
@@ -194,7 +187,6 @@ def get_factures_by_client(client_id):
 #GetFacturesByClient
 @facture.route('getByClient/actif/<int:client_id>', methods=['GET'])
 @jwt_required()
-
 def get_actif_factures_by_client(client_id):
 
     contrats = Contrats.query.filter_by(client_id=client_id).all()
@@ -204,7 +196,8 @@ def get_actif_factures_by_client(client_id):
     
     factures = Factures.query.filter(
             Factures.contrat_id.in_([contrat.id for contrat in contrats]),
-            Factures.actif == True, Factures.solde != 0,
+          #  Factures.actif == True,
+              Factures.solde != 0,
     ).order_by(Factures.date.desc()).all()
 
     if not factures:
@@ -218,9 +211,8 @@ def get_actif_factures_by_client(client_id):
 #GetfactureBynumero
 @facture.route('/getByNumero/<string:numero>',methods=['GET'])
 @jwt_required()
-
 def get_facture_by_numero(numero):
-    facture = Factures.query.filter(cast(numero, Integer) == numero).first()
+    facture = Factures.query.filter(numero == numero).first()
 
     if not facture:
         return jsonify({"message": "facture n'existe pas"}), 404
@@ -233,7 +225,6 @@ def get_facture_by_numero(numero):
 #Archivefacture
 @facture.route('/archiveFacture/<int:id>',methods=['PUT'])
 @jwt_required()
-
 def archiverFacture(id):
     facture = Factures.query.get(id)
 
@@ -252,7 +243,6 @@ def archiverFacture(id):
 #activerfacture
 @facture.route('/restaureFacture/<int:id>',methods=['PUT'])
 @jwt_required()
-
 def activerFacture(id):
     facture = Factures.query.get(id)
 
@@ -267,13 +257,11 @@ def activerFacture(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"message": "Echec dans la restauration du facture"}), 500
-    
 
 
 #Updatefacture
 @facture.route('/updateFacture/<int:id>',methods=['PUT'])
 @jwt_required()
-
 def updateFacture(id):
     facture = Factures.query.get(id)
 
@@ -407,7 +395,6 @@ def updateFactureAfterEncaissement(id,montant_encaisse):
 #MarquerPayéfacture
 @facture.route('/marquerpayeFacture/<int:id>',methods=['PUT'])
 @jwt_required()
-
 def marquerpayeFacture(id):
     
 
@@ -435,7 +422,6 @@ def marquerpayeFacture(id):
 
 @facture.route('/report/<int:facture_id>',methods=['GET'])
 @jwt_required()
-
 def report(facture_id):
     facture = Factures.query.get_or_404(facture_id)
     facture_data = facture.serialize()
@@ -508,25 +494,37 @@ def get_all_unpaid_factures():
 
 
     #export to csv
+
 @facture.route('/export/csv',methods=['GET'])
 @jwt_required()
-
 def export_csv_factures():
     try :
+        columns = request.args.get('columns')
+        if columns:
+            columns = columns.split(',')
+        else:
+            columns = ['numero','statut' ]  # Default columns
+
         factures = Factures.query.filter(Factures.statut!='Payée').all()
         factures_list = [facture.serialize_for_export() for facture in factures]
-        df = pd.DataFrame(factures_list)
+        for col in columns:
+            if col not in factures_list[0]:
+                return Response(
+                    f"Column '{col}' does not exist in facture data",
+                    status=400
+                )
+
+        filtered_factures_list = [{col: facture[col] for col in columns} for facture in factures_list]
+        
+        df = pd.DataFrame(filtered_factures_list)
         output = io.StringIO()
-        df.to_csv(output, index=False)
+        df.to_csv(output, index=False,encoding='utf-8')
         output.seek(0)
-        print("CSV generated successfully")
         return Response(
             output.getvalue(),
-            mimetype='text/csv',
-            headers={
-                "Content-Disposition": "attachment;filename=facture_en_cours.csv"
-            }
-        )
+            mimetype='text/csv;charset=utf-8',
+            headers={"Content-Disposition": "attachment;filename=facturesEncours.csv"}
+              )
     except Exception as e:
         print(f"Error: {e}")
         return jsonify({"error": str(e)}), 500

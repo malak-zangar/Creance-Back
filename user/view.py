@@ -14,7 +14,6 @@ user = Blueprint('user', __name__, url_prefix='/user')
 #Add new client
 @user.route('/create', methods=['POST'])
 @jwt_required()
-
 def create_client():
     data = request.get_json()
     username = data.get("username")
@@ -69,7 +68,6 @@ def get_all_clients():
 #GetActifClients
 @user.route('/getAllActif', methods=['GET'])
 @jwt_required()
-
 def get_all_actif_clients():
     actif_clients = Users.query.filter_by(actif=True).order_by(Users.dateCreation.desc()).all()
     serialized_clients = [client.serialize() for client in actif_clients]
@@ -78,7 +76,6 @@ def get_all_actif_clients():
 #GetArchivedClients
 @user.route('/getAllArchived', methods=['GET'])
 @jwt_required()
-
 def get_all_archived_clients():
     archived_clients = Users.query.filter_by(actif=False).order_by(Users.dateCreation.desc()).all()
     serialized_clients = [client.serialize() for client in archived_clients]
@@ -91,7 +88,6 @@ def get_all_archived_clients():
 #GetClientsByName
 @user.route('/getClientByName/<string:name>', methods=['GET'])
 @jwt_required()
-
 def get_clients_by_name(name):
     clients = Users.query.filter(Users.username.ilike(f'%{name}%')).order_by(Users.username).all()
     if not clients:
@@ -103,7 +99,6 @@ def get_clients_by_name(name):
 #GetClientByID
 @user.route('/getByID/<int:id>',methods=['GET'])
 @jwt_required()
-
 def get_client_by_id(id):
     client = Users.query.get(id)
     if not client:
@@ -117,7 +112,6 @@ def get_client_by_id(id):
 #ArchiveClient
 @user.route('/archiveClient/<int:id>',methods=['PUT'])
 @jwt_required()
-
 def archiverClient(id):
     client = Users.query.get(id)
 
@@ -136,7 +130,6 @@ def archiverClient(id):
 #activerClient
 @user.route('/activerClient/<int:id>',methods=['PUT'])
 @jwt_required()
-
 def activerClient(id):
     client = Users.query.get(id)
 
@@ -156,7 +149,6 @@ def activerClient(id):
 #UpdateClient
 @user.route('/updateClient/<int:id>',methods=['PUT'])
 @jwt_required()
-
 def updateClient(id):
     client = Users.query.get(id)
 
@@ -196,7 +188,6 @@ def updateClient(id):
 #export to csv
 @user.route('/export/csv',methods=['GET'])
 @jwt_required()
-
 def export_csv():
     users = Users.query.all()
     users_list = [user.serialize() for user in users]
@@ -212,46 +203,79 @@ def export_csv():
         }
     )
 
-#export to csv
-@user.route('/export/csv/actifusers',methods=['GET'])
+@user.route('/export/csv/actifusers', methods=['GET'])
 @jwt_required()
-
 def export_csv_actifusers():
-    users = Users.query.filter_by(actif=True).all()
-    users_list = [user.serialize_for_export() for user in users]
-    df = pd.DataFrame(users_list)
-    output = io.StringIO()
-    df.to_csv(output, index=False)
-    output.seek(0)
-    return Response(
-        output.getvalue(),
-        mimetype='text/csv',
-        headers={
-            "Content-Disposition": "attachment;filename=actifusers.csv"
-        }
-    )
+    try:
+        columns = request.args.get('columns')
+        if columns:
+            columns = columns.split(',')
+        else:
+            columns = ['username','email', 'emailcc', ]  # Default columns
 
-    #export to csv
-@user.route('/export/csv/nonactif',methods=['GET'])
-@jwt_required()
-
-def export_csv_nonactifusers():
-    try :
-        users = Users.query.filter_by(actif=False).all()
-        #users_list = [user.serialize() for user in users]
+        users = Users.query.filter_by(actif=True).all()
+        print(users)
         users_list = [user.serialize_for_export() for user in users]
-        df = pd.DataFrame(users_list)
+        print(users_list)
+        for col in columns:
+            if col not in users_list[0]:
+                return Response(
+                    f"Column '{col}' does not exist in user data",
+                    status=400
+                )
+
+        filtered_users_list = [{col: user[col] for col in columns} for user in users_list]
+        
+        df = pd.DataFrame(filtered_users_list)
         output = io.StringIO()
         df.to_csv(output, index=False)
         output.seek(0)
-        print("CSV generated successfully")
         return Response(
             output.getvalue(),
             mimetype='text/csv',
-            headers={
-                "Content-Disposition": "attachment;filename=nonactifusers.csv"
-            }
+            headers={"Content-Disposition": "attachment;filename=actifusers.csv"}
         )
+    except Exception as e:
+        return Response(
+            f"Internal Server Error: {str(e)}",
+            status=500
+        )
+
+
+    #export to csv
+
+@user.route('/export/csv/nonactif',methods=['GET'])
+@jwt_required()
+def export_csv_nonactifusers():
+    try :
+        columns = request.args.get('columns')
+        if columns:
+            columns = columns.split(',')
+        else:
+            columns = ['username','email', 'emailcc', ]  # Default columns
+
+        users = Users.query.filter_by(actif=False).all()
+        print(users)
+        users_list = [user.serialize_for_export() for user in users]
+        print(users_list)
+        for col in columns:
+            if col not in users_list[0]:
+                return Response(
+                    f"Column '{col}' does not exist in user data",
+                    status=400
+                )
+
+        filtered_users_list = [{col: user[col] for col in columns} for user in users_list]
+        
+        df = pd.DataFrame(filtered_users_list)
+        output = io.StringIO()
+        df.to_csv(output, index=False)
+        output.seek(0)
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={"Content-Disposition": "attachment;filename=actifusers.csv"}
+              )
     except Exception as e:
         print(f"Error: {e}")
         return jsonify({"error": str(e)}), 500

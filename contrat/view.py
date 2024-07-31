@@ -39,6 +39,7 @@ def create_contrat():
     data = request.get_json()
     reference = data.get("reference")
     dateDebut = data.get("dateDebut")
+    dateFin = data.get("dateFin")
     delai = int(data.get("delai"))
     devise = data.get("devise")
     type = data.get("type")
@@ -67,21 +68,18 @@ def create_contrat():
         return jsonify({
             "erreur": "le délai doit etre au moins égal à 1 jour"
         }), 400
+    
+    if dateDebut>dateFin :
+        return jsonify({
+            "erreur": "la date de fin doit etre supérieur à la date de début"
+        }), 400
 
-
-    if not (reference and type and typeFrequenceFacturation and devise and dateDebut and delai and client_id ):
+    if not (reference and type and typeFrequenceFacturation and devise and dateFin and dateDebut and delai and client_id ):
         return jsonify({
             "erreur": "svp entrer toutes les données"
         }), 400
     
-    try:
-        date = datetime.strptime(dateDebut, '%Y-%m-%d')
-        dateFin = date + timedelta(days=int(delai))
 
-    except ValueError:
-        return jsonify({
-            "erreur": "Format de date ou délai invalide"
-        }), 400
 
      
     if Contrats.query.filter_by(reference=reference).first() is not None:
@@ -148,7 +146,6 @@ def get_actif_contrats():
 #GetContratByID
 @contrat.route('/getByID/<int:id>',methods=['GET'])
 @jwt_required()
-
 def get_contrat_by_id(id):
     contrat = Contrats.query.get(id)
 
@@ -163,7 +160,6 @@ def get_contrat_by_id(id):
 #GetcontratByreference
 @contrat.route('/getByReference/<string:reference>',methods=['GET'])
 @jwt_required()
-
 def get_contrat_by_reference(reference):
     contrat = Contrats.query.filter(cast(reference, Integer) == reference).first()
 
@@ -179,7 +175,6 @@ def get_contrat_by_reference(reference):
 #GetcontratByclient
 @contrat.route('/getByClient/<int:id>',methods=['GET'])
 @jwt_required()
-
 def get_contrat_by_client(id):
     contracts = Contrats.query.filter_by(client_id=id).order_by(Contrats.dateDebut.desc()).all()
 
@@ -228,6 +223,7 @@ def updateContrat(id):
     contratFile = data.get('contratFile')
     contrat.reference = data.get("reference",contrat.reference)
     contrat.dateDebut= parse_date(data.get("dateDebut",contrat.dateDebut))
+    contrat.dateFin= parse_date(data.get("dateFin",contrat.dateFin))
     contrat.delai = data.get("delai",contrat.delai)
     contrat.devise = data.get("devise",contrat.devise)
     contrat.type = data.get("type")
@@ -237,13 +233,6 @@ def updateContrat(id):
     contrat.detailsFrequence = data.get("detailsFrequence")
     contrat.montantParMois = data.get("montantParMois")
     
-    try:
-        contrat.dateFin = contrat.dateDebut + timedelta(days=int(contrat.delai))
-
-    except ValueError:
-        return jsonify({
-            "erreur": "Format de date ou délai invalide"
-        }), 400
 
     if contratFile:
         contrat.contratFile = base64.b64decode(contratFile)
@@ -260,7 +249,6 @@ def updateContrat(id):
 
 @contrat.route('/contratFile/<int:contrat_id>/<string:reference>',methods=['GET'])
 @jwt_required()
-
 def report(contrat_id,reference):
     
     contrat = Contrats.query.get(contrat_id)
@@ -272,4 +260,3 @@ def report(contrat_id,reference):
     response.headers['Content-Disposition'] = f'inline; filename=contrat_{reference}.pdf'
 
     return response
-
