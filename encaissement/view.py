@@ -5,7 +5,7 @@ from encaissement.model import Encaissements
 from facture.model import Factures
 from facture.view import *
 from db import db
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 
 encaissement = Blueprint('encaissement', __name__, url_prefix='/encaissement')
 
@@ -20,30 +20,24 @@ def create_encaissement():
     montantEncaisse = float(data.get("montantEncaisse"))
     reference = data.get("reference")
     facture_numero = data.get("facture_numero")
-    actif = True
+   # actif = True
 
     if not (modeReglement and date and reference and facture_numero and montantEncaisse ):
         return jsonify({
             "erreur": "svp entrer toutes les données"
         }), 400
     print(facture_numero)
-    # response = get_facture_by_id(facture_numero)
-    # if response[1] != 200:
-    #     return response[0]
-    # facture_id = response[0].json['facture']['id']
-    # #facture_date = response[0].json['facture']['date']
-    # print(response[0].json['facture'])
-    # print(facture_id)
+
     if Encaissements.query.filter_by(reference=reference).first() is not None:
         return jsonify({'erreur': "Référence d'encaissement existe déja"}), 409
 
 
 
     new_encaissement = Encaissements(modeReglement=modeReglement, date=date,montantEncaisse=montantEncaisse,reference=reference,
-       facture_id=facture_numero,actif=actif)
+       facture_id=facture_numero,
+       )
     date_facture = datetime.strptime(get_facture_by_id(facture_numero)[0].json['facture']['date'], '%a, %d %b %Y %H:%M:%S %Z')
     date_encaissement = datetime.strptime(date, '%Y-%m-%d')
-    #facture_date1=datetime.strptime(facture_date, '%Y-%m-%d')
     if date_encaissement < date_facture :
         return jsonify({
             "erreur": "Date antérieur à la date de facture"
@@ -67,7 +61,6 @@ def create_encaissement():
 def get_all_encaissements():
     encaissements = Encaissements.query.order_by(Encaissements.date.desc()).all()
 
-# Debugging log to verify the order
     for encaissement in encaissements:
         print(f"ID: {encaissement.id}, Date: {encaissement.date}")
 
@@ -75,75 +68,6 @@ def get_all_encaissements():
 
     return jsonify(serialized_encaissements)
 
-#GetActifencaissements
-@encaissement.route('/getAllActif', methods=['GET'])
-@jwt_required()
-def get_all_actif_encaissements():
-    actif_encaissements = Encaissements.query.filter_by(actif=True).all()
-    serialized_encaissements = [facture.serialize() for facture in actif_encaissements]
-    return jsonify(serialized_encaissements)
-
-#GetArchivedencaissements
-@encaissement.route('/getAllArchived', methods=['GET'])
-@jwt_required()
-def get_all_archived_encaissements():
-    archived_encaissements = Encaissements.query.filter_by(actif=False).all()
-    serialized_encaissements = [encaissement.serialize() for encaissement in archived_encaissements]
-    return jsonify(serialized_encaissements)
-
-
-#GetfactureByID
-@encaissement.route('/getByID/<int:id>',methods=['GET'])
-@jwt_required()
-def get_encaissement_by_id(id):
-    encaissement = Encaissements.query.get(id)
-
-    if not encaissement:
-        
-        return jsonify({"message": "encaissement n'existe pas"}), 404
-
-    
-    return jsonify({
-        'message': "encaissement existe :",
-        'encaissement': encaissement.serialize()
-    }), 200
-
-#Archivefacture
-@encaissement.route('/archiveEncaissement/<int:id>',methods=['PUT'])
-@jwt_required()
-def archiverEncaissement(id):
-    encaissement = Encaissements.query.get(id)
-
-    if not encaissement:
-        return jsonify({"message": "encaissement n'existe pas"}), 404
-    
-    encaissement.actif=False
-
-    try:
-        db.session.commit()
-        return jsonify({"message": "encaissement archivé avec succés"}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"message": "Echec dans l'archivage de l'encaissement"}), 500
-    
-#activerfacture
-@encaissement.route('/activerEncaissement/<int:id>',methods=['PUT'])
-@jwt_required()
-def activerEncaissement(id):
-    encaissement = Encaissements.query.get(id)
-
-    if not encaissement:
-        return jsonify({"message": "encaissement n'existe pas"}), 404
-    
-    encaissement.actif=True
-
-    try:
-        db.session.commit()
-        return jsonify({"message": "encaissement restauré avec succés"}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"message": "Echec dans la restauration de l'encaissement"}), 500
-    
 
 
 #Updatefacture
@@ -161,7 +85,6 @@ def updateEncaissement(id):
     encaissement.montantEncaisse = data.get("montantEncaisse",encaissement.montantEncaisse)
     encaissement.modeReglement = data.get("modeReglement",encaissement.modeReglement)
     encaissement.facture_id = data.get("facture_id",encaissement.facture_id)
-    encaissement.actif = data.get("actif",encaissement.actif)
 
     try:
         db.session.commit()

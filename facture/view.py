@@ -7,6 +7,7 @@ from contrat.model import Contrats
 from contrat.view import get_contrat_by_id
 from facture.model import Factures
 from db import db
+from facture.utils import send_reminder_email, send_validation_email
 from user.view import *
 from sqlalchemy import cast, Integer
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -26,7 +27,6 @@ def create_facture():
     montant = float(data.get("montant"))
     montantEncaisse = float(data.get("montantEncaisse"))
     actionRecouvrement = data.get("actionRecouvrement")
-    #client_id = int(data.get("client_id"))
     contrat_id = int(data.get("contrat_id"))
     actif = False
 
@@ -64,19 +64,6 @@ def create_facture():
     retard = (today - echeance).days if (today > echeance and solde != 0) else 0
 
     dateFinalisation = None
-    
-    # if retard != 0 :
-    #     statut = "Échue"
-    # elif solde == 0:
-    #     statut = "Payée"
-    #     dateFinalisation = today.strftime('%Y-%m-%d')
-    # elif solde == montant:
-    #     statut = "Non payée"
-    #     dateFinalisation = None
-    # else:
-    #     statut = "En cours"
-    #     dateFinalisation = None
-
 
     if solde == 0:
         statut = "Payée"
@@ -100,31 +87,6 @@ def create_facture():
     send_validation_email(new_facture)
 
     return make_response(jsonify({"message": "facture crée avec succes", "facture": new_facture.serialize()}), 201)
-
-
-#GetAll factures
-@facture.route('/getAll', methods=['GET'])
-@jwt_required()
-def get_all_factures():
-    factures = Factures.query.order_by(Factures.date.desc()).all()
-    serialized_factures = [facture.serialize() for facture in factures]
-    return make_response(jsonify(serialized_factures))
-
-#GetActiffactures
-@facture.route('/getAllActif', methods=['GET'])
-@jwt_required()
-def get_all_actif_factures():
-    actif_factures = Factures.query.filter_by(actif=True).order_by(Factures.date.desc()).all()
-    serialized_factures = [facture.serialize() for facture in actif_factures]
-    return make_response(jsonify(serialized_factures))
-
-#GetArchivedfactures
-@facture.route('/getAllArchived', methods=['GET'])
-@jwt_required()
-def get_all_archived_factures():
-    archived_factures = Factures.query.filter_by(actif=False).order_by(Factures.date.desc()).all()
-    serialized_factures = [facture.serialize() for facture in archived_factures]
-    return jsonify(serialized_factures)
 
 
 #GetfactureByID
@@ -206,40 +168,7 @@ def get_actif_factures_by_client(client_id):
     serialized_factures = [facture.serialize() for facture in factures]
     return make_response(jsonify(serialized_factures), 200)
 
-
-
-#GetfactureBynumero
-@facture.route('/getByNumero/<string:numero>',methods=['GET'])
-@jwt_required()
-def get_facture_by_numero(numero):
-    facture = Factures.query.filter(numero == numero).first()
-
-    if not facture:
-        return jsonify({"message": "facture n'existe pas"}), 404
-
-    return jsonify({
-        'message': "facture existe :",
-        'facture': facture.serialize(),
-    }), 200
-
-#Archivefacture
-@facture.route('/archiveFacture/<int:id>',methods=['PUT'])
-@jwt_required()
-def archiverFacture(id):
-    facture = Factures.query.get(id)
-
-    if not facture:
-        return jsonify({"message": "facture n'existe pas"}), 404
-    
-    facture.actif=False
-
-    try:
-        db.session.commit()
-        return jsonify({"message": "facture archivé avec succés"}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"message": "Echec dans l'archivage du facture"}), 500
-    
+   
 #activerfacture
 @facture.route('/restaureFacture/<int:id>',methods=['PUT'])
 @jwt_required()
@@ -342,84 +271,6 @@ def updateFacture(id):
         return jsonify({"message": "Echec de la modification de la facture"}), 500
     
 
-
-#UpdatefactureAfterEncaissement
-def updateFactureAfterEncaissement(id,montant_encaisse):
-    facture = Factures.query.get(id)
-
-    if not facture:
-        return jsonify({"message": "facture n'existe pas"}), 404
-    if montant_encaisse>facture.solde :
-        return jsonify({
-            "erreur": "montant à encaisser supérieur au solde"
-        }), 400
-
-    
-    facture.montantEncaisse += montant_encaisse
-
-    facture.solde -= montant_encaisse
-
-    today = datetime.today()
-
-
-
-    # if facture.retard != 0 :
-    #     facture.statut = "Échue"
-    # elif facture.solde == 0:
-    #     facture.statut = "Payée"
-    #     facture.dateFinalisation = today.strftime('%Y-%m-%d')
-    # elif facture.solde == facture.montant:
-    #     facture.statut = "Non payée"
-    #     facture.dateFinalisation = None
-    # else:
-    #     facture.statut = "En cours"
-    #     facture.dateFinalisation = None
-
-    if facture.solde == 0:
-        facture.statut = "Payée"
-        facture.dateFinalisation = today.strftime('%Y-%m-%d')
-    elif facture.retard != 0 :
-        facture.statut = "Échue"
-    else:
-        facture.statut = "Non échue"
-        facture.dateFinalisation = None    
-    try:
-        db.session.commit()
-        return True, None  
-    except Exception as e:
-        db.session.rollback()
-        return False, jsonify({"message": "Erreur lors de la mise à jour de la facture"}), 500
-
-
-
-#MarquerPayéfacture
-@facture.route('/marquerpayeFacture/<int:id>',methods=['PUT'])
-@jwt_required()
-def marquerpayeFacture(id):
-    
-
-    facture = Factures.query.get(id)
-    if not facture:
-        return jsonify({"message": "Facture n'existe pas"}), 404
-    
-    facture.solde=0
-    facture.montantEncaisse=facture.montant
-    facture.statut = "Payée"
-
-    today = datetime.today()
-
-    facture.dateFinalisation = today.strftime('%Y-%m-%d')
-
-        # Calcul du retard en jours
-    facture.retard = (today - facture.echeance).days if (today > facture.echeance and facture.solde != 0) else 0
-    try:
-        db.session.commit()
-        return jsonify({"message": "facture marquée payée avec succés"}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"message": f"Echec du paiement de la facture: {str(e)}"}), 500    
-
-
 @facture.route('/report/<int:facture_id>',methods=['GET'])
 @jwt_required()
 def report(facture_id):
@@ -435,35 +286,6 @@ def report(facture_id):
     response.headers['Content-Disposition'] = f'inline; filename=report_facture_{facture_id}.pdf'
 
     return response
-
-
-def send_reminder_email(facture):
-    from app import mail
-
-    client_email = get_client_by_id(get_contrat_by_id(facture.contrat_id)[0].json['contrat']['client_id'])[0].json['client']['email']
-    msg = Message(
-        "Rappel de Facture",
-        sender=current_app.config['MAIL_USERNAME'],
-        recipients=[client_email]
-    )
-    msg.body = f"Bonjour, ceci est un rappel pour la facture {facture.numero} qui est due le {facture.echeance.strftime('%Y-%m-%d')}."
-   # mail.send(msg)
-
-def send_validation_email(facture):
-    from app import mail
-
-    contrat = get_contrat_by_id(facture.contrat_id)[0].json['contrat']
-    client_id = contrat['client_id']
-    client_email = get_client_by_id(client_id)[0].json['client']['email']
-
-   # client_email = get_client_by_id(get_contrat_by_id(facture.contrat_id)[0].json['contrat']['client_id'])[0].json['client']['email']
-    msg = Message(
-        "Validation de Facture",
-        sender=current_app.config['MAIL_USERNAME'],
-        recipients=[client_email]
-    )
-    msg.body = f"Bonjour, vous avez une nouvelle facture {facture.numero} à valider. Cliquez sur ce lien SVP : http://localhost:5173/factures/valider/{client_id}."    
-    mail.send(msg)
 
 
 @facture.route('/send-reminder')

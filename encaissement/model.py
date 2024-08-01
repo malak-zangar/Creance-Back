@@ -10,7 +10,6 @@ class Encaissements(db.Model):
     montantEncaisse = db.Column(db.Float,nullable=False)
     reference = db.Column(db.String(80),nullable=False)
 
-    actif = db.Column(db.Boolean,nullable=False)
 
 #relation
     facture_id = db.Column(db.Integer, db.ForeignKey('factures.id'),nullable=False)
@@ -24,7 +23,6 @@ class Encaissements(db.Model):
             'reference' : self.reference,
             'facture_id' : self.facture_id,
             'devise' : get_contrat_by_id(get_facture_by_id(self.facture_id)[0].json['facture']['contrat_id'])[0].json['contrat']['devise'],
-            'actif' : self.actif,
             'facture' : get_facture_by_id(self.facture_id)[0].json['facture']['numero'],
             'client':  get_client_by_id(get_facture_by_id(self.facture_id)[0].json['facture']['client_id'])[0].json['client']['username'],
             'contrat' : get_contrat_by_id(get_facture_by_id(self.facture_id)[0].json['facture']['contrat_id'])[0].json['contrat']['reference']

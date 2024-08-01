@@ -16,32 +16,16 @@ from encaissement.view import encaissement
 from contrat.view import contrat
 from paramEntreprise.view import paramentreprise
 from db import db
+from config import Config
 
 
-load_dotenv(dotenv_path=".env")
+#load_dotenv(dotenv_path=".env")
 
 app = Flask(__name__)
-
 CORS(app)
 CORS(app, resources={r"/*": {"origins": "http://localhost:5173", "supports_credentials": True}})
 
-app.config['CSRF_ENABLED'] = True
-app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
-
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI")
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["PROPAGATE_EXCEPTIONS"] = True
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_size' : 100, 'pool_recycle' : 300, "pool_pre_ping": True}
-
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587  
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USE_SSL'] = False
-app.config['MAIL_USERNAME'] = os.getenv("MAIL_USERNAME")
-app.config['MAIL_PASSWORD'] = os.getenv("MAIL_PASSWORD")
-
-app.config['JWT_SECRET_KEY'] = os.getenv("JWT_SECRET_KEY")  # Change this to a strong secret key
-
+app.config.from_object(Config)
 
 from flask_mail import Mail
 

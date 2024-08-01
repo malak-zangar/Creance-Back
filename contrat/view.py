@@ -4,6 +4,7 @@ from flask import Blueprint, current_app, render_template, request, jsonify, mak
 from datetime import date, datetime, timedelta
 import weasyprint 
 from contrat.model import Contrats
+from contrat.utils import activer_client, get_latest_paramentreprise
 from db import db
 from user.view import *
 from sqlalchemy import cast, Integer 
@@ -14,23 +15,6 @@ from paramEntreprise.view import *
 
 contrat = Blueprint('contrat', __name__, url_prefix='/contrat')
 
-
-def activer_client(token, client_id):
-    headers = {
-        'Authorization': f'Bearer {token}'
-    }
-    url = f"http://localhost:5555/user/activerClient/{client_id}"
-    response = requests.put(url, headers=headers)
-    return response
-
-def get_latest_paramentreprise(token):
-    headers = {
-        'Authorization': f'Bearer {token}'
-    }
-    response = requests.get('http://localhost:5555/paramentreprise/getLatest', headers=headers)
-    if response.status_code == 200:
-        return response.json().get('paramentreprise', {}).get('id')
-    return None
 
 #Add new contrat
 @contrat.route('/create', methods=['POST'])
@@ -78,8 +62,6 @@ def create_contrat():
         return jsonify({
             "erreur": "svp entrer toutes les données"
         }), 400
-    
-
 
      
     if Contrats.query.filter_by(reference=reference).first() is not None:
@@ -108,12 +90,12 @@ def create_contrat():
 
 
 #GetAll contrats
-@contrat.route('/getAll', methods=['GET'])
-@jwt_required()
-def get_all_contrats():
-    contrats = Contrats.query.order_by(Contrats.dateDebut.desc()).all()
-    serialized_contrats = [contrat.serialize() for contrat in contrats]
-    return make_response(jsonify(serialized_contrats))
+# @contrat.route('/getAll', methods=['GET'])
+# @jwt_required()
+# def get_all_contrats():
+#     contrats = Contrats.query.order_by(Contrats.dateDebut.desc()).all()
+#     serialized_contrats = [contrat.serialize() for contrat in contrats]
+#     return make_response(jsonify(serialized_contrats))
 
 # Get contracts where end date is less than the current date
 @contrat.route('/getExpired', methods=['GET'])
@@ -125,7 +107,6 @@ def get_expired_contrats():
         return jsonify({"message": "Aucun contrat expiré trouvé"}), 404
 
     serialized_expired_contrats = [contrat.serialize() for contrat in expired_contrats]
-   # return jsonify({"message": "Contrats expirés trouvés", "contracts": serialized_expired_contrats}), 200
     return make_response(jsonify(serialized_expired_contrats))
 
 # GetcontractsActif
@@ -138,7 +119,6 @@ def get_actif_contrats():
         return jsonify({"message": "Aucun contrat actif trouvé"}), 404
 
     serialized_due_today_contrats = [contrat.serialize() for contrat in actif_contrats]
-   # return jsonify({"message": "Contrats actifs trouvés", "contracts": serialized_due_today_contrats}), 200
     return make_response(jsonify(serialized_due_today_contrats))
 
 
@@ -158,18 +138,18 @@ def get_contrat_by_id(id):
     }), 200
 
 #GetcontratByreference
-@contrat.route('/getByReference/<string:reference>',methods=['GET'])
-@jwt_required()
-def get_contrat_by_reference(reference):
-    contrat = Contrats.query.filter(cast(reference, Integer) == reference).first()
+# @contrat.route('/getByReference/<string:reference>',methods=['GET'])
+# @jwt_required()
+# def get_contrat_by_reference(reference):
+#     contrat = Contrats.query.filter(cast(reference, Integer) == reference).first()
 
-    if not contrat:
-        return jsonify({"message": "contrat n'existe pas"}), 404
+#     if not contrat:
+#         return jsonify({"message": "contrat n'existe pas"}), 404
 
-    return jsonify({
-            'message': "contrat existe :",
-            'contrat': contrat.serialize(),
-        }), 200
+#     return jsonify({
+#             'message': "contrat existe :",
+#             'contrat': contrat.serialize(),
+#         }), 200
 
 
 #GetcontratByclient

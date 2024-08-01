@@ -20,8 +20,6 @@ class Factures(db.Model):
 
     encaissements_facture = db.relationship('Encaissements', backref='facture', lazy=True)
 
-    # Clé étrangère vers Users.id
-    #client_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     contrat_id = db.Column(db.Integer, db.ForeignKey('contrats.id'), nullable=False)
 
 

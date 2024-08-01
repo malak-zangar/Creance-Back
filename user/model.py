@@ -15,7 +15,6 @@ class Users(db.Model):
 
     actif = db.Column(db.Boolean,nullable=False)
 
-    #factures1 = db.relationship('Factures', backref='client', lazy=True)
     contrats1 = db.relationship('Contrats', backref='client', lazy=True)
 
     def serialize(self):
@@ -29,7 +28,6 @@ class Users(db.Model):
             'actif' : self.actif,
             'identifiantFiscal' : self.identifiantFiscal,
             'dateCreation': self.dateCreation,
-            #'contrats' : get_contrat_by_client(self.id)[0].json['contracts'],
             'contrats': [contrat.serialize() for contrat in self.contrats1]
         }
 

@@ -84,18 +84,6 @@ def get_all_archived_clients():
 
 
 
-
-#GetClientsByName
-@user.route('/getClientByName/<string:name>', methods=['GET'])
-@jwt_required()
-def get_clients_by_name(name):
-    clients = Users.query.filter(Users.username.ilike(f'%{name}%')).order_by(Users.username).all()
-    if not clients:
-        return jsonify({"message": "aucun client trouvé avec ce nom"}), 404  
-    serialized_clients = [client.serialize() for client in clients]
-    return jsonify(serialized_clients)
-
-
 #GetClientByID
 @user.route('/getByID/<int:id>',methods=['GET'])
 @jwt_required()
@@ -109,24 +97,7 @@ def get_client_by_id(id):
         'client': client.serialize()
     }), 200
 
-#ArchiveClient
-@user.route('/archiveClient/<int:id>',methods=['PUT'])
-@jwt_required()
-def archiverClient(id):
-    client = Users.query.get(id)
 
-    if not client:
-        return jsonify({"message": "client n'existe pas"}), 404
-    
-    client.actif=False
-
-    try:
-        db.session.commit()
-        return jsonify({"message": "Client archivé avec succés"}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"message": "Echec dans l'archivage du client"}), 500
-    
 #activerClient
 @user.route('/activerClient/<int:id>',methods=['PUT'])
 @jwt_required()
@@ -184,24 +155,6 @@ def updateClient(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"message": "Echec de la modification du client"}), 500
-
-#export to csv
-@user.route('/export/csv',methods=['GET'])
-@jwt_required()
-def export_csv():
-    users = Users.query.all()
-    users_list = [user.serialize() for user in users]
-    df = pd.DataFrame(users_list)
-    output = io.StringIO()
-    df.to_csv(output, index=False)
-    output.seek(0)
-    return Response(
-        output.getvalue(),
-        mimetype='text/csv',
-        headers={
-            "Content-Disposition": "attachment;filename=users.csv"
-        }
-    )
 
 @user.route('/export/csv/actifusers', methods=['GET'])
 @jwt_required()
