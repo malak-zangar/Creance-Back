@@ -89,14 +89,6 @@ def create_contrat():
     return make_response(jsonify({"message": "contrat crée avec succes", "contrat": new_contrat.serialize()}), 201)
 
 
-#GetAll contrats
-# @contrat.route('/getAll', methods=['GET'])
-# @jwt_required()
-# def get_all_contrats():
-#     contrats = Contrats.query.order_by(Contrats.dateDebut.desc()).all()
-#     serialized_contrats = [contrat.serialize() for contrat in contrats]
-#     return make_response(jsonify(serialized_contrats))
-
 # Get contracts where end date is less than the current date
 @contrat.route('/getExpired', methods=['GET'])
 @jwt_required()
@@ -136,21 +128,6 @@ def get_contrat_by_id(id):
         'message': "contrat existe :",
         'contrat': contrat.serialize()
     }), 200
-
-#GetcontratByreference
-# @contrat.route('/getByReference/<string:reference>',methods=['GET'])
-# @jwt_required()
-# def get_contrat_by_reference(reference):
-#     contrat = Contrats.query.filter(cast(reference, Integer) == reference).first()
-
-#     if not contrat:
-#         return jsonify({"message": "contrat n'existe pas"}), 404
-
-#     return jsonify({
-#             'message': "contrat existe :",
-#             'contrat': contrat.serialize(),
-#         }), 200
-
 
 #GetcontratByclient
 @contrat.route('/getByClient/<int:id>',methods=['GET'])

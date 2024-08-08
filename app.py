@@ -11,15 +11,14 @@ from apscheduler.triggers.cron import CronTrigger
 from flask_jwt_extended import JWTManager
 from auth.model import Auth
 from user.view import user
-from facture.view import facture, schedule_reminders
+from facture.view import facture, retard_counter, schedule_reminders
 from encaissement.view import encaissement
 from contrat.view import contrat
 from paramEntreprise.view import paramentreprise
+from dashboard.view import dashboard
 from db import db
 from config import Config
 
-
-#load_dotenv(dotenv_path=".env")
 
 app = Flask(__name__)
 CORS(app)
@@ -38,6 +37,8 @@ app.register_blueprint(facture)
 app.register_blueprint(encaissement)
 app.register_blueprint(contrat)
 app.register_blueprint(paramentreprise)
+app.register_blueprint(dashboard)
+
 
 jwt = JWTManager(app)
 
@@ -61,11 +62,11 @@ handler.setLevel(logging.INFO)
 app.logger.addHandler(handler)
 
 scheduler = BackgroundScheduler()
-#scheduler.add_job(func=schedule_reminders, trigger=CronTrigger(hour=10, minute=45))
-#scheduler.start()
+scheduler.add_job(func=retard_counter, trigger=CronTrigger(hour=00, minute=00))
+scheduler.start()
 
-#with app.app_context():
-    #schedule_reminders()
+with app.app_context():
+    retard_counter()
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000, host="0.0.0.0")

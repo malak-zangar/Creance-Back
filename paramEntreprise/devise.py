@@ -35,3 +35,32 @@ def convert_currency():
         'amount': amount,
         'converted_amount': converted_amount
     })
+
+# @paramentreprise.route('/convert', methods=['GET'])
+# def convert_currency():
+#     base_currency = request.args.get('base')
+#     #target_currency = request.args.get('target')
+#     amount = float(request.args.get('amount', 1.0))  # Montant à convertir
+#     if not base_currency or not target_currency:
+#         return jsonify({'error': 'Base currency and target currency are required'})
+
+#     url = f"https://v6.exchangerate-api.com/v6/{api_key}/latest/{base_currency}"
+
+#     response = requests.get(url)
+#     data = response.json()
+
+#     if data.get('result') != 'success':
+#         return jsonify({'error': 'Unable to fetch data from the API'})
+
+#     exchange_rate = data['conversion_rates'].get(target_currency)
+#     if not exchange_rate:
+#         return jsonify({'error': f'Conversion rate for {target_currency} not available'})
+
+#     converted_amount = amount * exchange_rate
+
+#     return jsonify({
+#         'base_currency': base_currency,
+#         'target_currency': target_currency,
+#         'amount': amount,
+#         'converted_amount': converted_amount
+#     })

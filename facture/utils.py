@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from flask import current_app, jsonify
 from flask_mail import Message
 from contrat.view import get_contrat_by_id
@@ -71,3 +71,15 @@ def send_validation_email(facture):
         return False, jsonify({"message": "Erreur lors de la mise à jour de la facture"}), 500
 
 
+def parse_date(date_input):
+        if isinstance(date_input, str):
+            try:
+                return datetime.strptime(date_input, '%Y-%m-%d').date()
+            except ValueError:
+                raise ValueError("Invalid date format")
+        elif isinstance(date_input, datetime):
+            return date_input.date()
+        elif isinstance(date_input, date):
+            return date_input
+        else:
+            raise ValueError("Invalid date format")

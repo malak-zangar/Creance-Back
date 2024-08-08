@@ -39,7 +39,9 @@ class Contrats(db.Model):
             'contratFile': base64.b64encode(self.contratFile).decode('utf-8') if self.contratFile else None,
             'client_id' : self.client_id,
             'client': self.client.username, 
-            'paramentrep_id': self.paramentrep_id        }
+            'paramentrep_id': self.paramentrep_id,
+             
+              }
 
     def serialize_for_export(self):
             return {

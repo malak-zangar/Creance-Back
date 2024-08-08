@@ -7,7 +7,7 @@ from contrat.model import Contrats
 from contrat.view import get_contrat_by_id
 from facture.model import Factures
 from db import db
-from facture.utils import send_reminder_email, send_validation_email
+from facture.utils import parse_date, send_reminder_email, send_validation_email
 from user.view import *
 from sqlalchemy import cast, Integer
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -196,18 +196,6 @@ def updateFacture(id):
 
     if not facture:
         return jsonify({"message": "facture n'existe pas"}), 404
-    def parse_date(date_input):
-        if isinstance(date_input, str):
-            try:
-                return datetime.strptime(date_input, '%Y-%m-%d').date()
-            except ValueError:
-                raise ValueError("Invalid date format")
-        elif isinstance(date_input, datetime):
-            return date_input.date()
-        elif isinstance(date_input, date):
-            return date_input
-        else:
-            raise ValueError("Invalid date format")
 
     data = request.get_json()
     facture.numero = data.get("numero",facture.numero)
@@ -297,6 +285,26 @@ def schedule_reminders():
         if facture.echeance - now <= timedelta(days=7):
             send_reminder_email(facture)
     return 'Reminders scheduled!'
+
+@facture.route('/retard-counter')
+def retard_counter():
+    
+    factures = Factures.query.all()
+    today = datetime.now().date()  # Convert datetime to date to match facture.echeance
+    for facture in factures:
+        facture_echeance = facture.echeance
+        if isinstance(facture_echeance, datetime):
+            facture_echeance = facture_echeance.date()  # Convert echeance to date if it's datetime
+
+        if today > facture_echeance and facture.solde != 0:
+            facture.retard = (today - facture_echeance).days
+            facture.statut="Échue"
+        else:
+            facture.retard = 0   
+        
+        db.session.commit()
+    return 'Retard Counted!'
+
 
 #GetPaidfactures
 @facture.route('/getAllPaid', methods=['GET'])
