@@ -1,6 +1,7 @@
 from contrat.view import get_contrat_by_id
 from db import db
 from datetime import datetime
+from paramEntreprise.view import get_paramentrep_by_id
 from user.view import *
 
 class Factures(db.Model):
@@ -63,5 +64,23 @@ class Factures(db.Model):
             'contrat' : get_contrat_by_id(self.contrat_id)[0].json['contrat']['reference'],
             'devise' : get_contrat_by_id(self.contrat_id)[0].json['contrat']['devise'],
             'client': get_client_by_id(get_contrat_by_id(self.contrat_id)[0].json['contrat']['client_id'])[0].json['client']['username'],
+        }
+    
+    def serialize_for_bill(self):
+        return {
+            'id': self.id,
+            'numero': self.numero,
+            'date': self.date,
+            'echeance': self.echeance,
+            'statut': self.statut,
+            'montant' : self.montant,
+            'montantEncaisse' : self.montantEncaisse,
+            'solde' : self.solde,
+            'retard' : self.retard,
+            'dateFinalisation' : self.dateFinalisation,
+            'actionRecouvrement' : self.actionRecouvrement,
+            'contrat' : get_contrat_by_id(self.contrat_id)[0].json['contrat'],
+            'param_entreprise' : get_paramentrep_by_id(get_contrat_by_id(self.contrat_id)[0].json['contrat']['paramentrep_id'])[0].json['paramentreprise'],
+            'client': get_client_by_id(get_contrat_by_id(self.contrat_id)[0].json['contrat']['client_id'])[0].json['client'],
         }
 

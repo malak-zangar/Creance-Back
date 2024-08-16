@@ -106,7 +106,7 @@ def get_expired_contrats():
 @jwt_required()
 def get_actif_contrats():
     current_date = datetime.now().date()
-    actif_contrats = Contrats.query.filter(Contrats.dateFin >= current_date).order_by(Contrats.dateFin.desc()).all()
+    actif_contrats = Contrats.query.filter(Contrats.dateFin >= current_date).order_by(Contrats.dateFin.asc()).all()
     if not actif_contrats:
         return jsonify({"message": "Aucun contrat actif trouvé"}), 404
 

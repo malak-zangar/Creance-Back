@@ -7,6 +7,7 @@ import os
 from contrat.model import Contrats
 from contrat.view import get_contrat_by_id
 from dashboard.utils import formater_montant_euro, get_param_entreprise_by_id
+from db import db
 from facture.model import Factures
 
 dashboard = Blueprint('dashboard', __name__, url_prefix='/dashboard')
@@ -291,15 +292,29 @@ def get_creance_evolution():
 
     return jsonify(sortedRes)
 
-#GetTotalContratActifs
-@dashboard.route('/totalContratActifs', methods=['GET'])
+#GetNextContractToexpire."
+@dashboard.route('/nextContractToexpire', methods=['GET'])
 @jwt_required()
 def contrat_stats():
     current_date = datetime.now().date()
-    actif_contrats = Contrats.query.filter(Contrats.dateFin >= current_date).all()
-    actif = len(actif_contrats)
-    total = len(Contrats.query.all())
-    pourcentage_actif = (actif / total) * 100 if total else 0
+    
+    earliest_expiration = db.session.query(db.func.min(Contrats.dateFin)).filter(Contrats.dateFin >= current_date).scalar()
 
-    return jsonify({'totalContratActif': actif,
-                    "pourcentageActif" :pourcentage_actif })
+    if not earliest_expiration:
+        return jsonify({"message": "Aucun contrat actif trouvé"}), 404
+
+    actif_contrats = Contrats.query.filter(Contrats.dateFin == earliest_expiration).order_by(Contrats.dateFin.asc()).all()
+
+    serialized_due_today_contrats = [contrat.serialize() for contrat in actif_contrats]
+    return jsonify(serialized_due_today_contrats)
+
+
+
+    # current_date = datetime.now().date()
+    # actif_contrats = Contrats.query.filter(Contrats.dateFin >= current_date).all()
+    # actif = len(actif_contrats)
+    # total = len(Contrats.query.all())
+    # pourcentage_actif = (actif / total) * 100 if total else 0
+
+    # return jsonify({'totalContratActif': actif,
+    #                 "pourcentageActif" :pourcentage_actif })

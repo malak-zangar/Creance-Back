@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Facture {{facture.numero}}</title>
+
+    <style>
+      .invoice-box {
+        max-width: 800px;
+        /*margin: auto;*/
+        padding: 30px;
+        font-size: 16px;
+        line-height: 24px;
+        font-family: "Helvetica Neue", "Helvetica", Helvetica, Arial, sans-serif;
+        color: #555;
+        border: 5px solid rgb(0, 2, 128);
+        border-radius: 10px;
+      }
+
+      .invoice-box table {
+        width: 100%;
+        line-height: inherit;
+        text-align: left;
+      }
+
+      .invoice-box table td {
+        padding: 5px;
+        vertical-align: top;
+      }
+
+      /* Conserver l'alignement à droite pour "Facture de" et les dates */
+      .invoice-box table tr.top td:nth-child(2),
+      .invoice-box table tr.information td:nth-child(2) {
+        text-align: right;
+      }
+
+      /* Supprimer l'alignement à droite pour les montants */
+      .invoice-box table tr.heading td,
+      .invoice-box table tr.item td {
+        text-align: left;
+      }
+
+      .invoice-box table tr.top table td {
+        padding-bottom: 20px;
+      }
+
+      .invoice-box table tr.top table td.title {
+        font-size: 45px;
+        line-height: 45px;
+        color: #333;
+      }
+
+      .invoice-box table tr.information table td {
+        padding-bottom: 40px;
+      }
+
+      .invoice-box table tr.heading td {
+        background: #eee;
+        border-bottom: 1px solid #ddd;
+        font-weight: bold;
+        font-size: 14px;
+      }
+
+      .invoice-box table tr.details td {
+        padding-bottom: 20px;
+      }
+
+      .invoice-box table tr.item td {
+        border-bottom: 1px solid #eee;
+      }
+
+      .invoice-box table tr.item.last td {
+        border-bottom: none;
+      }
+
+      .invoice-box table tr.total td:nth-child(2) {
+        border-top: 2px solid #eee;
+        font-weight: bold;
+      }
+
+      @media only screen and (max-width: 600px) {
+        .invoice-box table tr.top table td {
+          width: 100%;
+          display: block;
+          text-align: center;
+        }
+
+        .invoice-box table tr.information table td {
+          width: 100%;
+          display: block;
+          text-align: center;
+        }
+      }
+      div.divFooter {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  left: 0;
+}
+
+div.divFooter img {
+  width: 100%;
+  height: auto;
+  max-height: 50px;
+}
+
+
+
+      /** RTL **/
+      .rtl {
+        direction: rtl;
+        font-family: Tahoma, "Helvetica Neue", "Helvetica", Helvetica, Arial,
+          sans-serif;
+      }
+
+      .rtl table {
+        text-align: right;
+      }
+
+      .rtl table tr td:nth-child(2) {
+        text-align: left;
+      }
+
+      .status-label {
+        padding: 5px 10px;
+        border-radius: 5px;
+        color: white;
+        font-weight: bold;
+      }
+
+      .status-echue {
+        background-color: red;
+      }
+
+      .status-payee {
+        background-color: green;
+      }
+
+      .status-non-echue {
+        background-color: gray;
+      }
+
+      .static-text {
+        color: black;
+      }
+
+      .dynamic-text {
+        color: gray;
+      }
+
+      @page {
+        size: a4 portrait;
+        margin: 0mm 0mm 0mm 0mm;
+      }
+
+      .thank-you {
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  margin-top: 30px;
+  color: rgb(0, 2, 128); 
+  font-family: "Georgia", serif; 
+}
+
+    </style>
+  </head>
+
+  <body>
+    <div class="invoice-box">
+
+      <table cellpadding="0" cellspacing="0">
+        <tr class="top">
+          <td colspan="5">
+            <table>
+              <tr>
+                <td class="title">
+
+                  <img
+                  src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQWuUbRIpwib3IE1BSQ7N0kk7MkMdaWkAk3HA&s"
+                  alt="image"
+                    style="height: 100px"
+                  />
+                </td>
+                <td>
+                  <b class="static-text">Facture </b>
+                  <span
+                    class="status-label {% if facture.statut == 'Échue' %}status-echue{% elif facture.statut == 'Payée' %}status-payee{% elif facture.statut == 'Non échue' %}status-non-echue{% endif %}"
+                  >
+                    {{ facture.statut }} </span
+                  ><br />
+                  <br />
+                  <span class="static-text">Numéro :</span>
+                  <span class="dynamic-text">#{{ facture.numero }}</span><br />
+                  <span class="static-text">Créé le :</span>
+                  <span class="dynamic-text"
+                    >{{ facture.date.strftime('%Y-%m-%d') }}</span
+                  ><br />
+                  <span class="static-text">Dûe le :</span>
+                  <span class="dynamic-text"
+                    >{{ facture.echeance.strftime('%Y-%m-%d') }}</span
+                  >
+                  <br />
+                  <span class="static-text">Finalisée le :</span>
+                  <span class="dynamic-text">
+                    {% if facture.dateFinalisation %} {{
+                    facture.dateFinalisation.strftime('%Y-%m-%d') }} {% else %}
+                    - {% endif %}</span
+                  >
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <tr class="information">
+          <td colspan="5">
+            <hr />
+
+            <table>
+              <tr>
+                <td>
+                  <b>Facturée à</b> <br />
+                  <span class="static-text">Nom du client :</span>
+                  <span class="dynamic-text">{{ facture.client.username }}</span
+                  ><br />
+                  <span class="static-text">Email :</span>
+                  <span class="dynamic-text">{{ facture.client.email }}</span
+                  ><br />
+                  <span class="static-text">Téléphone :</span>
+                  <span class="dynamic-text">{{ facture.client.phone }}</span
+                  ><br />
+                  <span class="static-text">Adresse :</span>
+                  <span class="dynamic-text">{{ facture.client.adresse }}</span
+                  ><br />
+                  <span class="static-text">Identifiant fiscal :</span>
+                  <span class="dynamic-text"
+                    >{{ facture.client.identifiantFiscal }}</span
+                  >
+                </td>
+                <td>
+                  <b>Facture de</b> <br />
+                  <span class="static-text">Raison sociale :</span>
+                  <span class="dynamic-text"
+                    >{{ facture.param_entreprise.raisonSociale }}</span
+                  ><br />
+                  <span class="static-text">Email :</span>
+                  <span class="dynamic-text"
+                    >{{ facture.param_entreprise.email }}</span
+                  ><br />
+                  <span class="static-text">Téléphone :</span>
+                  <span class="dynamic-text"
+                    >{{ facture.param_entreprise.phone }}</span
+                  ><br />
+                  <span class="static-text">Adresse :</span>
+                  <span class="dynamic-text"
+                    >{{ facture.param_entreprise.adresse }}</span
+                  ><br />
+                  <span class="static-text">Identifiant fiscal :</span>
+                  <span class="dynamic-text"
+                    >{{ facture.param_entreprise.identifiantFiscal }}</span
+                  >
+                </td>
+              </tr>
+            </table>
+
+            <hr />
+          </td>
+        </tr>
+</table>
+
+      <!-- First Table: Montants HT, TVA et TTC -->
+      <table cellpadding="0" cellspacing="0">
+        <tr class="heading">
+          <td>Montant HT</td>
+          <td>Taux TVA</td>
+          <td>Montant TTC</td>
+        </tr>
+        <tr class="item">
+          <td>{{'%0.2f'|format( facture.montant/ (1 + 0.10)|float) }} {{ facture.contrat.devise }}</td>
+          <td>10%</td>
+          <td>{{ facture.montant }} {{ facture.contrat.devise }}</td>
+        </tr>
+      </table>
+    
+      <!-- Second Table: Retard et Action de recouvrement -->
+      <table cellpadding="0" cellspacing="0" style="margin-top: 20px;">
+        <tr class="heading">
+          <td>Retard</td>
+          <td>Action recouvrement</td>
+        </tr>
+        <tr class="item">
+          <td>
+            {% if facture.retard == 0 %} - {% else %} {{facture.retard}} Jours {% endif %}
+          </td>
+          <td>{{ facture.actionRecouvrement }}</td>
+        </tr>
+      </table>
+    
+      <!-- Third Table: Détails contractuels -->
+      <table cellpadding="0" cellspacing="0" style="margin-top: 20px;">
+        <tr class="item">
+          <td colspan="5" style="font-weight: bold; text-align: left; margin-top: 3px;">
+            Détails contractuelles :
+          </td>
+        </tr>
+        <tr class="heading">
+          <td>Type de contrat</td>
+    
+          {% if facture.contrat.type == 'Forfait' %}
+          <td>Prix forfaitaire (TTC)</td>
+          {% elif facture.contrat.type == 'Jour Homme' %}
+          <td>Prix par jour/homme</td>
+          {% elif facture.contrat.type == 'Mix' %}
+          <td>Montant total (TTC)</td>
+          <td>Prix par jour/homme</td>
+          {% endif %}
+    
+          <td>Fréquence de facturation</td>
+    
+          {% if facture.contrat.typeFrequenceFacturation == 'Mensuelle' and facture.contrat.type == 'Forfait' %}
+          <td>Montant à facturer par Mois</td>
+          {% elif facture.contrat.typeFrequenceFacturation == 'Spécifique' %}
+          <td>Détails</td>
+          {% endif %}
+        </tr>
+    
+        <tr class="item last">
+          <td>{{facture.contrat.type}}</td>
+    
+          {% if facture.contrat.type == 'Forfait' %}
+          <td>{{facture.contrat.total}} {{facture.contrat.devise}}</td>
+          {% elif facture.contrat.type == 'Jour Homme' %}
+          <td>{{facture.contrat.prixJourHomme}} {{facture.contrat.devise}}</td>
+          {% elif facture.contrat.type == 'Mix' %}
+          <td>{{facture.contrat.total}} {{facture.contrat.devise}}</td>
+          <td>{{facture.contrat.prixJourHomme}} {{facture.contrat.devise}}</td>
+          {% endif %}
+          <td>{{facture.contrat.typeFrequenceFacturation}}</td>
+    
+          {% if facture.contrat.typeFrequenceFacturation == 'Spécifique' %}
+          <td>{{facture.contrat.detailsFrequence}}</td>
+          {% endif %} 
+          {% if facture.contrat.typeFrequenceFacturation == 'Mensuelle' and facture.contrat.type == 'Forfait' %}
+          <td>{{facture.contrat.montantParMois}} {{facture.contrat.devise}}</td>
+          {% endif %}
+        </tr>
+      </table>
+  
+    
+           <!-- Tableau de résumé -->
+           <table cellpadding="0" cellspacing="0" style="width: 100%; margin-top: 20px;">
+            <tr>
+              <td></td>
+              <td style="text-align: right; font-weight: bold;">
+                <p>Total total à payer: {{ facture.montant }} {{ facture.contrat.devise }}</p>
+                <p>Montant déjà payé: {{ facture.montantEncaisse }} {{ facture.contrat.devise }}</p>
+                <p>Montant restant à payer: {{ facture.solde }} {{ facture.contrat.devise }}</p>
+              </td>
+            </tr>
+          </table>
+        </div>
+ 
+  
+    <div class="thank-you">
+      Merci pour votre affaire  <span style="color: rgb(204, 198, 241);">☻</span>
+    </div> 
+      
+      <div class="divFooter">
+        <img
+        src="https://bluelineconstructionms.com/wp-content/uploads/2022/08/footer-shape-e1660687207146.png"
+        style="width: 100%; height: auto; max-height: 50px;"
+      /> </div>
+      
+  </body>
+</html>

@@ -1,5 +1,5 @@
 from operator import and_
-from flask import Blueprint, current_app, render_template, request, jsonify, make_response
+from flask import Blueprint, current_app, render_template, request, jsonify, make_response, send_file
 from datetime import date, datetime, timedelta
 from flask_mail import Mail, Message
 import weasyprint
@@ -11,7 +11,6 @@ from facture.utils import parse_date, send_reminder_email, send_validation_email
 from user.view import *
 from sqlalchemy import cast, Integer
 from flask_jwt_extended import jwt_required, get_jwt_identity
-
 
 facture = Blueprint('facture', __name__, url_prefix='/facture')
 
@@ -259,22 +258,30 @@ def updateFacture(id):
         return jsonify({"message": "Echec de la modification de la facture"}), 500
     
 
-@facture.route('/report/<int:facture_id>',methods=['GET'])
-@jwt_required()
-def report(facture_id):
-    facture = Factures.query.get_or_404(facture_id)
-    facture_data = facture.serialize()
+# @facture.route('/report/<int:facture_id>',methods=['GET'])
+# @jwt_required()
+# def report(facture_id):
+#     facture = Factures.query.get_or_404(facture_id)
+#     facture_data = facture.serialize()
 
-    html = render_template('facture_report.html', facture=facture_data)
+#     html = render_template('facture_report.html', facture=facture_data)
     
-    pdf = weasyprint.HTML(string=html).write_pdf()
+#     pdf = weasyprint.HTML(string=html).write_pdf()
 
-    response = make_response(pdf)
-    response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = f'inline; filename=report_facture_{facture_id}.pdf'
+#     response = make_response(pdf)
+#     response.headers['Content-Type'] = 'application/pdf'
+#     response.headers['Content-Disposition'] = f'inline; filename=report_facture_{facture_id}.pdf'
 
-    return response
+#     return response
 
+@facture.route('/auto/<int:facture_id>',methods=['GET'])
+def factAuto(facture_id):
+    facture = Factures.query.get_or_404(facture_id)
+    facture_data = facture.serialize_for_bill()
+    html = render_template('invoice.html', facture=facture_data)
+    pdf = weasyprint.HTML(string=html).write_pdf('./static/invoice.pdf')
+
+    return send_file('./static/invoice.pdf')
 
 @facture.route('/send-reminder')
 def schedule_reminders():

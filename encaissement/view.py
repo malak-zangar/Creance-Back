@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify, make_response, redirect, flash, r
 from datetime import datetime, timedelta
 from encaissement.model import Encaissements
 from facture.model import Factures
+from facture.utils import updateFactureAfterEncaissement
 from facture.view import *
 from db import db
 from flask_jwt_extended import jwt_required

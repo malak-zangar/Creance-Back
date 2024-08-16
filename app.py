@@ -20,7 +20,7 @@ from db import db
 from config import Config
 
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 CORS(app)
 CORS(app, resources={r"/*": {"origins": "http://localhost:5173", "supports_credentials": True}})
 

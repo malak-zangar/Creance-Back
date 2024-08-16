@@ -39,6 +39,16 @@ def login():
     else:
         return jsonify({"erreur": "Invalid username or password"}), 402
 
+@auth.route('/getAll', methods=['GET'])
+@jwt_required()
+def getAll():
+    admins = Auth.query.all()
+    
+    serialized_admins = [admin.serialize() for admin in admins]
+
+    return jsonify(serialized_admins)
+
+
 # Add new admin
 @auth.route('/create', methods=['POST'])
 def create_admin():
