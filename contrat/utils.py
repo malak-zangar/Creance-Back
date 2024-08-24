@@ -1,4 +1,18 @@
+from flask import jsonify
 import requests
+
+from contrat.model import Contrats
+
+def get_contrat_by_id(id):
+    contrat = Contrats.query.get(id)
+
+    if not contrat:
+        return jsonify({"message": "contrat n'existe pas"}), 404
+
+    return jsonify({
+        'message': "contrat existe :",
+        'contrat': contrat.serialize()
+    }), 200
 
 
 def activer_client(token, client_id):

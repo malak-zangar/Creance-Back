@@ -3,7 +3,7 @@ from flask import Blueprint, request, jsonify, make_response, redirect, flash, r
 from datetime import datetime, timedelta
 from encaissement.model import Encaissements
 from facture.model import Factures
-from facture.utils import updateFactureAfterEncaissement
+from facture.utils import updateFactureAfterCancelEncaissement, updateFactureAfterEncaissement
 from facture.view import *
 from db import db
 from flask_jwt_extended import jwt_required
@@ -47,12 +47,17 @@ def create_encaissement():
 
     db.session.add(new_encaissement)
 
-    update_facture_result = updateFactureAfterEncaissement(facture_numero, montantEncaisse)
-    if not update_facture_result[0]:
-        db.session.rollback()  
-        return update_facture_result[1], 500  
+    # update_facture_result = updateFactureAfterEncaissement(facture_numero, montantEncaisse)
+    # if not update_facture_result[0]:
+    #     db.session.rollback()  
+    #     return update_facture_result[1], 500  
 
-    db.session.commit()  
+    # db.session.commit()  
+    # return make_response(jsonify({"message": "encaissement crée avec succes", "encaissement": new_encaissement.serialize()}), 201)
+    update_facture_result, status_code = updateFactureAfterEncaissement(facture_numero, montantEncaisse)
+    if not update_facture_result:
+        db.session.rollback()  
+        return status_code 
     return make_response(jsonify({"message": "encaissement crée avec succes", "encaissement": new_encaissement.serialize()}), 201)
 
 
@@ -60,7 +65,14 @@ def create_encaissement():
 @encaissement.route('/getAll', methods=['GET'])
 @jwt_required()
 def get_all_encaissements():
-    encaissements = Encaissements.query.order_by(Encaissements.date.desc()).all()
+    start_date_str = request.args.get('start')
+    end_date_str = request.args.get('end')
+    
+    start_date = datetime.strptime(start_date_str, '%Y-%m-%d') if start_date_str else None
+    end_date = datetime.strptime(end_date_str, '%Y-%m-%d') if end_date_str else None
+
+    if start_date and end_date:
+        encaissements = Encaissements.query.filter(Encaissements.date.between(start_date, end_date)).order_by(Encaissements.date.desc()).all()
 
     for encaissement in encaissements:
         print(f"ID: {encaissement.id}, Date: {encaissement.date}")
@@ -71,7 +83,7 @@ def get_all_encaissements():
 
 
 
-#Updatefacture
+#Updatepaiement
 @encaissement.route('/updateEncaissement/<int:id>',methods=['PUT'])
 @jwt_required()
 def updateEncaissement(id):
@@ -80,13 +92,31 @@ def updateEncaissement(id):
     if not encaissement:
         return jsonify({"message": "encaissement n'existe pas"}), 404
 
+    oldfact=encaissement.facture_id
+    oldmontant=encaissement.montantEncaisse
+
     data = request.get_json()
+    print("Received facture_id:", data.get("facture_id"))
     encaissement.date = data.get("date",encaissement.date)
     encaissement.reference = data.get("reference",encaissement.reference)
     encaissement.montantEncaisse = data.get("montantEncaisse",encaissement.montantEncaisse)
     encaissement.modeReglement = data.get("modeReglement",encaissement.modeReglement)
     encaissement.facture_id = data.get("facture_id",encaissement.facture_id)
+    
+    if encaissement.facture_id is None:
+        return jsonify({"message": "Facture ID manquant"}), 400
 
+    update_facture_result, status_code = updateFactureAfterEncaissement(data.get("facture_id"), data.get("montantEncaisse"))
+    update_facture_result1, status_code1 = updateFactureAfterCancelEncaissement(oldfact,oldmontant)
+    
+    if not update_facture_result:
+        db.session.rollback()  
+        return status_code 
+        
+    if not update_facture_result1:
+        db.session.rollback()  
+        return status_code1 
+    
     try:
         db.session.commit()
         return jsonify({"message": "encaissement modifié avec succés"}), 200
@@ -94,6 +124,30 @@ def updateEncaissement(id):
         db.session.rollback()
         return jsonify({"message": "Echec de la modification de l'encaissement"}), 500
     
+
+#CancelPaiement
+@encaissement.route('/cancelEncaissement/<int:id>',methods=['DELETE'])
+@jwt_required()
+def cancelEncaissement(id):
+    encaissement = Encaissements.query.get(id)
+
+    if not encaissement:
+        return jsonify({"message": "encaissement n'existe pas"}), 404
+    
+    update_facture_result1, status_code1 = updateFactureAfterCancelEncaissement(encaissement.facture_id,encaissement.montantEncaisse)
+        
+    if not update_facture_result1:
+        db.session.rollback()  
+        return status_code1 
+    
+    try:
+        db.session.delete(encaissement)
+        db.session.commit()
+        return jsonify({"message": "encaissement annulé avec succés"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": "Echec de l'annulation de l'encaissement"}), 500
+  
 
 #generer recu de paiement
 @encaissement.route('/recu/<int:encaissement_id>',methods=['GET'])
@@ -111,3 +165,20 @@ def receipt(encaissement_id):
     response.headers['Content-Disposition'] = f'inline; filename=recu_encaissement_{encaissement_id}.pdf'
 
     return response
+
+#GetencaissementByID
+@facture.route('/getByID/<int:id>',methods=['GET'])
+@jwt_required()
+def get_encaissement_by_id(id):
+    encaissement = Encaissements.query.get(id)
+
+    if not encaissement:
+        
+        return jsonify({"message": "encaissement n'existe pas"}), 404
+
+    
+    return jsonify({
+        'message': "encaissement existe :",
+        'encaissement': encaissement.serialize()
+    }), 200
+

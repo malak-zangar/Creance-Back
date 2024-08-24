@@ -1,7 +1,7 @@
 import base64
 from db import db
 from datetime import datetime
-from user.view import *
+from client.view import *
 from paramEntreprise.view import *
 
 class Contrats(db.Model):

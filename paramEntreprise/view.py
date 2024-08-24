@@ -129,3 +129,37 @@ def get_latest_paramentrep():
         'paramentreprise': latest_paramentreprise.serialize()
     }), 200
 
+# Get exchange rate history
+@paramentreprise.route('/getExchangeRateHistory/<currency>', methods=['GET'])
+@jwt_required()
+def get_exchange_rate_history(currency):
+    if currency == 'USD':
+        currency_column = 'tauxUsdEur'
+    elif currency == 'TND':
+        currency_column = 'tauxTndEur'
+    else:
+        return jsonify({'error': 'Currency not supported'}), 400
+
+    exchange_rate_history = (
+        db.session.query(ParamEntreprise.dateInsertion, getattr(ParamEntreprise, currency_column))
+        .order_by(ParamEntreprise.dateInsertion.desc())
+        .all()
+    )
+
+    # Sérialise les résultats pour la réponse JSON
+    history = [
+        {'dateInsertion': record.dateInsertion, 'exchangeRate': getattr(record, currency_column)}
+        for record in exchange_rate_history
+    ]
+    return jsonify({'exchangeRateHistory': history}), 200
+
+def get_paramentrep_by_id1(id):
+    paramentreprise = ParamEntreprise.query.get(id)
+
+    if not paramentreprise:
+        return jsonify({"message": "paramentreprise n'existe pas"}), 404
+
+    return jsonify({
+        'message': "paramentreprise existe :",
+        'paramentreprise': paramentreprise.serialize()
+    }), 200

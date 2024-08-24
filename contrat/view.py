@@ -6,10 +6,12 @@ import weasyprint
 from contrat.model import Contrats
 from contrat.utils import activer_client, get_latest_paramentreprise
 from db import db
-from user.view import *
+from client.view import *
 from sqlalchemy import cast, Integer 
 import requests  
 from flask_jwt_extended import get_jwt, jwt_required, get_jwt_identity 
+from facture.model import Factures
+from facture.utils import parse_date, updateFactureAfterContractUpdate
 from paramEntreprise.view import *
 
 
@@ -156,53 +158,93 @@ def get_actual_contrat_by_client(id):
 
 
 #UpdateContrat
-@contrat.route('/updateContrat/<int:id>',methods=['PUT'])
+# @contrat.route('/updateContrat/<int:id>',methods=['PUT'])
+# @jwt_required()
+# def updateContrat(id):
+#     contrat = Contrats.query.get(id)
+
+#     if not contrat:
+#         return jsonify({"message": "contrat n'existe pas"}), 404
+#     def parse_date(date_input):
+#         if isinstance(date_input, str):
+#             try:
+#                 return datetime.strptime(date_input, '%Y-%m-%d').date()
+#             except ValueError:
+#                 raise ValueError("Invalid date format")
+#         elif isinstance(date_input, datetime):
+#             return date_input.date()
+#         elif isinstance(date_input, date):
+#             return date_input
+#         else:
+#             raise ValueError("Invalid date format")
+
+#     data = request.get_json()
+#     contratFile = data.get('contratFile')
+#     contrat.reference = data.get("reference",contrat.reference)
+#     contrat.dateDebut= parse_date(data.get("dateDebut",contrat.dateDebut))
+#     contrat.dateFin= parse_date(data.get("dateFin",contrat.dateFin))
+#     contrat.delai = data.get("delai",contrat.delai)
+#     contrat.devise = data.get("devise",contrat.devise)
+#     contrat.type = data.get("type")
+#     contrat.total = data.get("total")
+#     contrat.prixJourHomme = data.get("prixJourHomme")
+#     contrat.typeFrequenceFacturation = data.get("typeFrequenceFacturation")
+#     contrat.detailsFrequence = data.get("detailsFrequence")
+#     contrat.montantParMois = data.get("montantParMois")
+    
+
+#     if contratFile:
+#         contrat.contratFile = base64.b64decode(contratFile)
+    
+#     factures = Factures.query.filter_by(contrat_id=contrat.id).all()
+#     print(contrat.delai)
+#     try:
+#         for facture in factures:
+#             update_facture_result, status_code = updateFactureAfterContractUpdate(facture.id, contrat.delai)
+#             print(facture.id ,'+', contrat.delai)
+#             if not update_facture_result:
+#                 db.session.rollback()  
+#                 return status_code 
+#         db.session.commit()
+#         return jsonify({"message": "contrat modifié avec succès"}), 200
+
+#     except Exception as e:
+#         db.session.rollback()
+#         return jsonify({"message": "Echec de la modification du contrat"}), 500   
+@contrat.route('/updateContrat/<int:id>', methods=['PUT'])
 @jwt_required()
 def updateContrat(id):
     contrat = Contrats.query.get(id)
 
     if not contrat:
         return jsonify({"message": "contrat n'existe pas"}), 404
-    def parse_date(date_input):
-        if isinstance(date_input, str):
-            try:
-                return datetime.strptime(date_input, '%Y-%m-%d').date()
-            except ValueError:
-                raise ValueError("Invalid date format")
-        elif isinstance(date_input, datetime):
-            return date_input.date()
-        elif isinstance(date_input, date):
-            return date_input
-        else:
-            raise ValueError("Invalid date format")
 
     data = request.get_json()
     contratFile = data.get('contratFile')
-    contrat.reference = data.get("reference",contrat.reference)
-    contrat.dateDebut= parse_date(data.get("dateDebut",contrat.dateDebut))
-    contrat.dateFin= parse_date(data.get("dateFin",contrat.dateFin))
-    contrat.delai = data.get("delai",contrat.delai)
-    contrat.devise = data.get("devise",contrat.devise)
+    contrat.reference = data.get("reference", contrat.reference)
+    contrat.dateDebut = parse_date(data.get("dateDebut", contrat.dateDebut))
+    contrat.dateFin = parse_date(data.get("dateFin", contrat.dateFin))
+    contrat.delai = data.get("delai", contrat.delai)
+    contrat.devise = data.get("devise", contrat.devise)
     contrat.type = data.get("type")
     contrat.total = data.get("total")
     contrat.prixJourHomme = data.get("prixJourHomme")
     contrat.typeFrequenceFacturation = data.get("typeFrequenceFacturation")
     contrat.detailsFrequence = data.get("detailsFrequence")
     contrat.montantParMois = data.get("montantParMois")
-    
 
     if contratFile:
         contrat.contratFile = base64.b64decode(contratFile)
 
-
     try:
+        factures = Factures.query.filter_by(contrat_id=contrat.id).all()
+        for facture in factures:
+            updateFactureAfterContractUpdate(facture, contrat.delai)
         db.session.commit()
-        return jsonify({"message": "contrat modifié avec succés"}), 200
+        return jsonify({"message": "contrat modifié avec succès"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"message": "Echec de la modification du contrat"}), 500
-    
-
+        return jsonify({"message": f"Echec de la modification du contrat: {str(e)}"}), 500
 
 @contrat.route('/contratFile/<int:contrat_id>/<string:reference>',methods=['GET'])
 @jwt_required()

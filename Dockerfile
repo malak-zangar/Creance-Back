@@ -7,4 +7,4 @@ COPY requirements.txt /code/
 RUN pip install -r requirements.txt
 COPY . /code/
 
-CMD gunicorn --bind 0.0.0.0:5000 --timeout 120 -w 4 -k gevent app:app
+CMD gunicorn --bind 0.0.0.0:5000 --timeout 120 -w 1 -k gevent app:app

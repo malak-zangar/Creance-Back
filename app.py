@@ -1,6 +1,4 @@
 from datetime import timedelta
-import os
-import pytz
 from flask import Flask
 import logging
 from flask_cors import CORS
@@ -10,12 +8,13 @@ from flask_login import LoginManager
 from apscheduler.triggers.cron import CronTrigger
 from flask_jwt_extended import JWTManager
 from auth.model import Auth
-from user.view import user
+from client.view import user
 from facture.view import facture, retard_counter, schedule_reminders
 from encaissement.view import encaissement
 from contrat.view import contrat
 from paramEntreprise.view import paramentreprise
 from dashboard.view import dashboard
+from relance.view import emailcascade
 from db import db
 from config import Config
 
@@ -38,7 +37,7 @@ app.register_blueprint(encaissement)
 app.register_blueprint(contrat)
 app.register_blueprint(paramentreprise)
 app.register_blueprint(dashboard)
-
+app.register_blueprint(emailcascade)
 
 jwt = JWTManager(app)
 
@@ -63,6 +62,7 @@ app.logger.addHandler(handler)
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=retard_counter, trigger=CronTrigger(hour=00, minute=00))
+scheduler.add_job(func=schedule_reminders, trigger=CronTrigger(hour=18, minute=3))
 scheduler.start()
 
 with app.app_context():

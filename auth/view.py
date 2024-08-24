@@ -9,6 +9,8 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from auth.model import Auth
 from jwt.exceptions import ExpiredSignatureError  # Import from jwt.exceptions
 from db import db
+from paramEntreprise.model import ParamEntreprise
+from relance.model import EmailCascade
 
 auth = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -173,16 +175,27 @@ def send_recuperation_email():
     print(email)
 
     auth=Auth.query.filter_by(email=email).first()
+
+    entrep_param = get_latest_paramentrep()['param_entreprise']
+    email_param = EmailCascade.query.filter_by(type='Recepuration de mot de passe').first()
+
     if auth :
         token = auth.get_reset_token()
+        reset_url = f"http://localhost:5173/resetPassword?token={token}"
+
+        subject = email_param.objet
+        body = email_param.corps.replace("[Nom d'utilisateur]", auth.username) \
+                    .replace("[lien]", reset_url) \
+                    .replace("[Nom de l'entreprise]", entrep_param['raisonSociale'])
+
         try : 
             msg = Message(
-                "Récupération du mot de passe",
+                subject,
                 sender=current_app.config['MAIL_USERNAME'],
                 recipients=[email]
             )
-            reset_url = f"http://localhost:5173/resetPassword?token={token}"
-            msg.body = f"Bonjour Monsieur/Madame {auth.username}, veuillez cliquer sur ce lien pour réinitialiser votre mot de passe : {reset_url}"               
+            # msg.body = f"Bonjour Monsieur/Madame {auth.username}, veuillez cliquer sur ce lien pour réinitialiser votre mot de passe : {reset_url}"               
+            msg.body = body
             mail.send(msg)
             return jsonify({"message": "Email envoyé avec succès"}), 200
         except Exception as e:
@@ -202,3 +215,11 @@ def verify_password(id):
         return jsonify({"message": "Mot de passe incorrect"}), 402
 
     return jsonify({"message": "Mot de passe correct"}), 200
+
+def get_latest_paramentrep():
+    latest_paramentreprise = ParamEntreprise.query.order_by(ParamEntreprise.dateInsertion.desc()).first()
+    
+    if not latest_paramentreprise:
+        return jsonify({"message": "Aucun paramentreprise trouvé"}), 404
+
+    return {'param_entreprise': latest_paramentreprise.serialize()}

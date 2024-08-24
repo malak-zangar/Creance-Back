@@ -1,7 +1,7 @@
 from db import db
 from datetime import datetime
 from facture.view import *
-from user.view import *
+from client.view import *
 
 class Encaissements(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -25,7 +25,10 @@ class Encaissements(db.Model):
             'devise' : get_contrat_by_id(get_facture_by_id(self.facture_id)[0].json['facture']['contrat_id'])[0].json['contrat']['devise'],
             'facture' : get_facture_by_id(self.facture_id)[0].json['facture']['numero'],
             'client':  get_client_by_id(get_facture_by_id(self.facture_id)[0].json['facture']['client_id'])[0].json['client']['username'],
-            'contrat' : get_contrat_by_id(get_facture_by_id(self.facture_id)[0].json['facture']['contrat_id'])[0].json['contrat']['reference']
+            'contrat' : get_contrat_by_id(get_facture_by_id(self.facture_id)[0].json['facture']['contrat_id'])[0].json['contrat']['reference'],
+            'client_id':  get_client_by_id(get_facture_by_id(self.facture_id)[0].json['facture']['client_id'])[0].json['client']['id'],
+            'contrat_id' : get_contrat_by_id(get_facture_by_id(self.facture_id)[0].json['facture']['contrat_id'])[0].json['contrat']['id']
+   
         }
 
 

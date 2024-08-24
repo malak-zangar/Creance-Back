@@ -2,7 +2,7 @@ from collections import defaultdict
 from datetime import datetime
 from email.utils import parsedate
 from flask_jwt_extended import jwt_required
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 import os
 from contrat.model import Contrats
 from contrat.view import get_contrat_by_id
@@ -318,3 +318,46 @@ def contrat_stats():
 
     # return jsonify({'totalContratActif': actif,
     #                 "pourcentageActif" :pourcentage_actif })
+
+
+
+@dashboard.route('/getCA', methods=['GET'])
+@jwt_required()
+def get_ca():
+    start_date_str = request.args.get('start')
+    end_date_str = request.args.get('end')
+    
+    start_date = datetime.strptime(start_date_str, '%Y-%m-%d') if start_date_str else None
+    end_date = datetime.strptime(end_date_str, '%Y-%m-%d') if end_date_str else None
+
+    if start_date and end_date:
+        factures = Factures.query.filter(Factures.date.between(start_date, end_date)).all()
+    else:
+        factures = Factures.query.all()
+
+    serialized_factures = [facture.serialize() for facture in factures]
+
+    total_ca = 0.0
+    total_factures = len(factures)
+
+    for facture in serialized_factures:
+        base_currency = facture['devise']
+        amount = facture['montant']
+
+        contrat = get_contrat_by_id(facture['contrat_id'])[0].json['contrat']
+        param_entreprise = get_param_entreprise_by_id(contrat['paramentrep_id'])['param_entreprise']
+
+        if base_currency == 'TND':
+            conversion_rate = param_entreprise['tauxTndEur']
+        elif base_currency == 'USD':
+            conversion_rate = param_entreprise['tauxUsdEur']
+        else:
+            conversion_rate = 1
+
+        amount *= conversion_rate
+        total_ca += amount
+
+    return jsonify({
+        "nombre": total_factures,
+        "total": float(formater_montant_euro(total_ca)),
+    })
