@@ -5,7 +5,7 @@ from flask_mail import Message
 import jwt
 import validators
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import  create_access_token, jwt_required
 from auth.model import Auth
 from jwt.exceptions import ExpiredSignatureError  # Import from jwt.exceptions
 from db import db
@@ -91,12 +91,6 @@ def create_admin():
 def logout():
     return 'user logged out successfully'
 
-# @auth.route("/protected", methods=['GET'])
-# @jwt_required()
-# def protected():
-#     current_user_id = get_jwt_identity()
-#     return jsonify(logged_in_as=current_user_id), 200
-
 
 #ModifierProfil
 @auth.route('/profile/<int:id>',methods=['PUT'])
@@ -107,7 +101,6 @@ def updateProfil(id):
     if not user:
         return jsonify({"message": "user n'existe pas"}), 404
     data = request.get_json()
-    print(data)
     password = data.get("password")
     user.email = data.get("email",user.email)
     user.username = data.get("username",user.username)
@@ -126,11 +119,8 @@ def updateProfil(id):
 @auth.route('/resetpassword',methods=['PUT'])
 def resetPassword():
     data = request.get_json()
-    print(data)
     token = data.get('token')
-    print(token)
     password = data.get('password')
-    print(password)
    
 
     if not token:
@@ -158,7 +148,6 @@ def resetPassword():
     except jwt.InvalidTokenError:
         return jsonify({"message": "Token invalide"}), 400
     except Exception as e:
-        print(f"Erreur: {e}")
         db.session.rollback()
         return jsonify({"message": "Echec dans la réinitalisation du mot de passe "}), 500
 
@@ -167,12 +156,10 @@ def resetPassword():
 def send_recuperation_email():
     from app import mail
     data = request.get_json()
-    print(data)
 
     email=data.get("email")
     if not email:
         return jsonify({"message": "Adresse email manquante"}), 400
-    print(email)
 
     auth=Auth.query.filter_by(email=email).first()
 
@@ -194,12 +181,10 @@ def send_recuperation_email():
                 sender=current_app.config['MAIL_USERNAME'],
                 recipients=[email]
             )
-            # msg.body = f"Bonjour Monsieur/Madame {auth.username}, veuillez cliquer sur ce lien pour réinitialiser votre mot de passe : {reset_url}"               
             msg.body = body
             mail.send(msg)
             return jsonify({"message": "Email envoyé avec succès"}), 200
         except Exception as e:
-            print(f"Erreur lors de l'envoi de l'email: {e}")
             return jsonify({"erreur": "Échec de l'envoi de l'email"}), 500
     else :
         return jsonify({"erreur": "Adresse email n'existe pas"}), 402

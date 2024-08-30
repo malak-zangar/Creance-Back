@@ -8,7 +8,6 @@ class Config :
     CSRF_ENABLED = True
     SECRET_KEY = os.getenv("SECRET_KEY")
 
-    #API_KEY='8e2c386920da3958a8b3336a'
     TARGET_CURRENCY='EUR' 
 
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URI")

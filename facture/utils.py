@@ -1,27 +1,10 @@
 from datetime import date, datetime, timedelta
+import sys
 from flask import current_app, jsonify
 from flask_mail import Message
 from db import db
 from facture.model import Factures
 from relance.model import EmailCascade
-
-#UpdatefactureAfterEncaissement
-# def updateFactureAfterEncaissement(id,montant_encaisse):
-#     facture = Factures.query.get(id)
-
-#     if not facture:
-#         return jsonify({"message": "facture n'existe pas"}), 404
-#     if montant_encaisse>facture.solde :
-#         return jsonify({
-#             "erreur": "montant à encaisser supérieur au solde"
-#         }), 400
-
-    
-#     facture.montantEncaisse += montant_encaisse
-
-#     facture.solde -= montant_encaisse
-
-#     today = datetime.today()
 
 def updateFactureAfterEncaissement(id, montant_encaisse):
     facture = Factures.query.get(id)
@@ -37,6 +20,12 @@ def updateFactureAfterEncaissement(id, montant_encaisse):
     facture.montantEncaisse += montant_encaisse
     facture.solde -= montant_encaisse
 
+    today = datetime.today()
+
+    if facture.solde == 0:
+        facture.statut = "Payée"
+        facture.dateFinalisation = today.strftime('%Y-%m-%d')
+
     try:
         db.session.commit()  # Commit the changes to the database
         return (True, "Facture mise à jour avec succès")  # Return success status and message
@@ -50,14 +39,19 @@ def updateFactureAfterCancelEncaissement(id, montant_encaisse):
 
     if not facture:
         return (False, jsonify({"message": "facture n'existe pas"})), 404
-    
-    if montant_encaisse > facture.solde:
-        return (False, jsonify({
-            "erreur": "montant à encaisser supérieur au solde"
-        })), 400
 
     facture.montantEncaisse -= montant_encaisse
     facture.solde += montant_encaisse
+    today = datetime.today()
+   # Mettre à jour le statut de la facture en fonction de la date d'échéance
+    if facture.echeance < today:
+        facture.statut = "Échue"
+    
+    else:
+        facture.statut = "Non échue"
+     
+    facture.dateFinalisation = None
+
 
     try:
         db.session.commit()  
@@ -103,20 +97,11 @@ def send_newfacture_email(facture,fact):
                                           .replace("[Nom de l'entreprise]", facture['nomEntrep'])
 
   
-   # client_email = get_client_by_id(get_contrat_by_id(facture.contrat_id)[0].json['contrat']['client_id'])[0].json['client']['email']
     msg = Message(
                     subject,
                     sender=current_app.config['MAIL_USERNAME'],
                     recipients=[client_email]
                 )
-   
-    # msg = Message(
-    #     "Validation de Facture",
-    #     sender=current_app.config['MAIL_USERNAME'],
-    #     recipients=[client_email]
-    # )
-
-    # msg.body = f"Bonjour, vous avez une nouvelle facture {facture.numero} à valider. Cliquez sur ce lien SVP : http://localhost:5173/factures/valider/{client_id}."    
     msg.body=body
     mail.send(msg)
 
@@ -134,31 +119,6 @@ def send_newfacture_email(facture,fact):
     except Exception as e:
         db.session.rollback()
         return False, jsonify({"message": "Erreur lors de la mise à jour de la facture"}), 500
-
-
-# def updateFactureAfterContractUpdate(id, delay):
-#     facture = Factures.query.get(id)
-
-#     if not facture:
-#         return (False, jsonify({"message": "facture n'existe pas"})), 404
-#     try:
-#         facture.echeance = facture.date + timedelta(days=int(delay))
-#         today = datetime.today().date()
-#         print(today)
-#         facture.retard = (today - facture.echeance).days if (today > facture.echeance and facture.solde != 0) else 0
-#         print(facture.retard)
-#         if facture.solde == 0:
-#             facture.statut = "Payée"
-#         elif facture.retard != 0 :
-#             facture.statut = "Échue"
-#         else:
-#             facture.statut = "Non échue"
-#             facture.dateFinalisation = None  
-#         db.session.commit()  # Commit the changes to the database
-#         return (True, "Facture mise à jour avec succès")  # Return success status and message
-#     except Exception as e:
-#         db.session.rollback()  # Rollback the changes if an error occurs
-#         return (False, jsonify({"erreur": "Erreur lors de la mise à jour de la facture"})), 500
 
 
 def updateFactureAfterContractUpdate(facture, delay):

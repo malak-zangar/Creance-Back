@@ -1,8 +1,7 @@
 import os
-from flask import Blueprint, Response, request, jsonify, make_response
-from datetime import datetime, timedelta
+from flask import Blueprint, request, jsonify, make_response
+from datetime import datetime
 
-import requests
 from db import db
 import validators
 from flask_jwt_extended import jwt_required

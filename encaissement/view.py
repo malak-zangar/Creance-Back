@@ -1,8 +1,6 @@
-import json
-from flask import Blueprint, request, jsonify, make_response, redirect, flash, render_template
-from datetime import datetime, timedelta
+from flask import Blueprint, request, jsonify, make_response, render_template
+from datetime import datetime
 from encaissement.model import Encaissements
-from facture.model import Factures
 from facture.utils import updateFactureAfterCancelEncaissement, updateFactureAfterEncaissement
 from facture.view import *
 from db import db
@@ -27,7 +25,6 @@ def create_encaissement():
         return jsonify({
             "erreur": "svp entrer toutes les données"
         }), 400
-    print(facture_numero)
 
     if Encaissements.query.filter_by(reference=reference).first() is not None:
         return jsonify({'erreur': "Référence d'encaissement existe déja"}), 409
@@ -46,14 +43,6 @@ def create_encaissement():
 
 
     db.session.add(new_encaissement)
-
-    # update_facture_result = updateFactureAfterEncaissement(facture_numero, montantEncaisse)
-    # if not update_facture_result[0]:
-    #     db.session.rollback()  
-    #     return update_facture_result[1], 500  
-
-    # db.session.commit()  
-    # return make_response(jsonify({"message": "encaissement crée avec succes", "encaissement": new_encaissement.serialize()}), 201)
     update_facture_result, status_code = updateFactureAfterEncaissement(facture_numero, montantEncaisse)
     if not update_facture_result:
         db.session.rollback()  
@@ -96,7 +85,6 @@ def updateEncaissement(id):
     oldmontant=encaissement.montantEncaisse
 
     data = request.get_json()
-    print("Received facture_id:", data.get("facture_id"))
     encaissement.date = data.get("date",encaissement.date)
     encaissement.reference = data.get("reference",encaissement.reference)
     encaissement.montantEncaisse = data.get("montantEncaisse",encaissement.montantEncaisse)
@@ -135,7 +123,6 @@ def cancelEncaissement(id):
         return jsonify({"message": "encaissement n'existe pas"}), 404
     
     update_facture_result1, status_code1 = updateFactureAfterCancelEncaissement(encaissement.facture_id,encaissement.montantEncaisse)
-        
     if not update_facture_result1:
         db.session.rollback()  
         return status_code1 

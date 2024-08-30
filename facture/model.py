@@ -1,5 +1,4 @@
 from db import db
-from datetime import datetime
 from paramEntreprise.view import get_paramentrep_by_id, get_paramentrep_by_id1
 from client.view import *
 
@@ -9,7 +8,6 @@ class Factures(db.Model):
     date = db.Column(db.DateTime, nullable=False)
     echeance = db.Column(db.DateTime,nullable=False )
     statut = db.Column(db.String(80),nullable=False)
-    #delai = db.Column(db.Integer )
     montant = db.Column(db.Float, nullable=False)
     montantEncaisse = db.Column(db.Float)
     dateFinalisation = db.Column(db.DateTime)
@@ -17,7 +15,7 @@ class Factures(db.Model):
     retard = db.Column(db.Integer)
     actif = db.Column(db.Boolean,nullable=False)
     nbrRelance = db.Column(db.Integer, nullable=False)
-    # actifRelance = db.Column(db.Boolean,nullable=False)
+    actifRelance = db.Column(db.Boolean,nullable=False)
 
     encaissements_facture = db.relationship('Encaissements', backref='facture', lazy=True)
 
@@ -27,8 +25,6 @@ class Factures(db.Model):
     def serialize(self):
         from contrat.view import get_contrat_by_id
         from client.view import get_client_by_id
-        # from dashboard.utils import get_contrat_by_id
-
 
         return {
             'id': self.id,
@@ -45,6 +41,7 @@ class Factures(db.Model):
             'actif' : self.actif,
             'contrat_id' : self.contrat_id,
             'nbrRelance' : self.nbrRelance,
+            'actifRelance' : self.actifRelance,
             'contrat' : get_contrat_by_id(self.contrat_id)[0].json['contrat']['reference'],
             'devise' : get_contrat_by_id(self.contrat_id)[0].json['contrat']['devise'],
             'client_id' : get_contrat_by_id(self.contrat_id)[0].json['contrat']['client_id'],
@@ -56,8 +53,6 @@ class Factures(db.Model):
  }
     def serializeForEmail(self):
         from contrat.utils import get_contrat_by_id
-        # from client.view import get_client_by_id
-        # from dashboard.utils import get_contrat_by_id
         from client.utils import get_client_by_id
 
 
@@ -74,6 +69,7 @@ class Factures(db.Model):
             'retard' : self.retard,
             'dateFinalisation' : self.dateFinalisation,
             'actif' : self.actif,
+            'actifRelance':self.actifRelance,
             'contrat_id' : self.contrat_id,
             'nomEntrep' : get_paramentrep_by_id1(get_contrat_by_id(self.contrat_id)[0].json['contrat']['paramentrep_id'])[0].json['paramentreprise']['raisonSociale'],
             'nbrRelance' : self.nbrRelance,
@@ -104,6 +100,7 @@ class Factures(db.Model):
             'retard' : self.retard,
             'dateFinalisation' : self.dateFinalisation,
             'actif' : self.actif,
+            'actifRelance': self.actifRelance,
             'nbrRelance' : self.nbrRelance,
             'contrat' : get_contrat_by_id(self.contrat_id)[0].json['contrat']['reference'],
             'devise' : get_contrat_by_id(self.contrat_id)[0].json['contrat']['devise'],
@@ -125,6 +122,7 @@ class Factures(db.Model):
             'solde' : self.solde,
             'retard' : self.retard,
             'dateFinalisation' : self.dateFinalisation,
+            'actifRelance' : self.actifRelance,
             'nbrRelance' : self.nbrRelance,
             'contrat' : get_contrat_by_id(self.contrat_id)[0].json['contrat'],
             'param_entreprise' : get_paramentrep_by_id(get_contrat_by_id(self.contrat_id)[0].json['contrat']['paramentrep_id'])[0].json['paramentreprise'],

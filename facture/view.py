@@ -1,17 +1,15 @@
-from operator import and_
 import sys
 from flask import Blueprint, current_app, render_template, request, jsonify, make_response, send_file
-from datetime import date, datetime, timedelta
-from flask_mail import Mail, Message
+from datetime import  datetime, timedelta
+from flask_mail import  Message
 import weasyprint
 from contrat.model import Contrats
 from contrat.view import get_contrat_by_id
 from facture.model import Factures
 from db import db
-from facture.utils import parse_date, send_reminder_email, send_newfacture_email
+from facture.utils import parse_date, send_newfacture_email
 from client.view import *
-from sqlalchemy import cast, Integer
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 
 from relance.model import EmailCascade
 
@@ -25,12 +23,12 @@ def create_facture():
     data = request.get_json()
     numero = data.get("numero")
     date = data.get("date")
-    #delai = int(data.get("delai"))
     delai = get_contrat_by_id(int(data.get("contrat_id")))[0].json['contrat']['delai']
     montant = float(data.get("montant"))
     montantEncaisse = float(data.get("montantEncaisse"))
     contrat_id = int(data.get("contrat_id"))
     actif = False
+    actifRelance = True
     nbrRelance = 0
 
 
@@ -81,13 +79,9 @@ def create_facture():
         return jsonify({'erreur': "Numéro de facture existe déja"}), 409
     
 
-
-    # new_facture = Factures(numero=numero, date=date,echeance=echeance,statut=statut,delai=delai,montant=montant,
-    #             montantEncaisse=montantEncaisse, solde=solde, retard=retard, 
-    #              actif=actif ,contrat_id=contrat_id,dateFinalisation=dateFinalisation )
     new_facture = Factures(numero=numero, date=date,echeance=echeance,statut=statut,montant=montant,
                 montantEncaisse=montantEncaisse, solde=solde, retard=retard, nbrRelance=nbrRelance, 
-                 actif=actif ,contrat_id=contrat_id,dateFinalisation=dateFinalisation )
+                 actif=actif ,contrat_id=contrat_id,dateFinalisation=dateFinalisation,actifRelance=actifRelance )
     db.session.add(new_facture)
     db.session.commit()
     send_newfacture_email(new_facture.serializeForEmail(),new_facture)
@@ -110,6 +104,23 @@ def get_facture_by_id(id):
         'message': "facture existe :",
         'facture': facture.serialize()
     }), 200
+
+#GetfactureByIDSerializedForEmail
+@facture.route('/getByIDSerializedForEmail/<int:id>',methods=['GET'])
+@jwt_required()
+def get_facture_by_id_SerializedForEmail(id):
+    facture = Factures.query.get(id)
+
+    if not facture:
+        
+        return jsonify({"message": "facture n'existe pas"}), 404
+
+    
+    return jsonify({
+        'message': "facture existe :",
+        'facture': facture.serializeForEmail()
+    }), 200
+
 
 
 # Get clients with active unpaid invoices
@@ -141,12 +152,12 @@ def get_factures_by_client(client_id):
     contrats = Contrats.query.filter_by(client_id=client_id).all()
     
     if not contrats:
-        return jsonify({"message": "Aucun contrat trouvé pour ce client"}), 404
+        return make_response(jsonify({"message": "Aucun contrat trouvé pour ce client"}), 404)
     
     factures = Factures.query.filter(Factures.contrat_id.in_([contrat.id for contrat in contrats])).order_by(Factures.date.desc()).all()
     
     if not factures:
-        return jsonify({"message": "Aucune facture trouvée pour ce client"}), 404
+        return make_response(jsonify({"message": "Aucune facture trouvée pour ce client"}), 404)
     
     serialized_factures = [facture.serialize() for facture in factures]
     return make_response(jsonify(serialized_factures), 200)
@@ -205,17 +216,15 @@ def updateFacture(id):
 
     data = request.get_json()
     facture.numero = data.get("numero",facture.numero)
-    #facture.date = date(data.get("date",facture.date))
     facture.date= parse_date(data.get("date",facture.date))
-    #facture.echeance = date(data.get("echeance",facture.echeance))
     facture.echeance = parse_date(data.get("echeance",facture.echeance))
     facture.statut = data.get("statut",facture.statut)
-    #facture.delai = data.get("delai",facture.delai)
     facture.montant = float(data.get("montant",facture.montant))
     facture.montantEncaisse = float(data.get("montantEncaisse",facture.montantEncaisse))
     facture.solde = float(data.get("solde",facture.solde))
     facture.actif = data.get("actif",facture.actif)
     facture.nbrRelance = data.get("nbrRelance",facture.nbrRelance)
+    facture.actifRelance = data.get("actifRelance",facture.actifRelance)
 
 
     if facture.montantEncaisse > facture.montant :
@@ -228,17 +237,6 @@ def updateFacture(id):
             "erreur": "Le solde ne peut pas être supérieur au montant total"
         }), 400
     
-    # try:
-    #     #date = datetime.strptime(facture.date, '%Y-%m-%d')
-    #     facture.echeance = facture.date + timedelta(days=int(facture.delai))
-
-    # except ValueError:
-    #     return jsonify({
-    #         "erreur": "Format de date ou délai invalide"
-    #     }), 400
-
-    # Calcul du retard en jours
-    #today = parse_date(datetime.today())
     today = datetime.today().date()
 
     print (f" {type(facture.echeance)}")
@@ -265,22 +263,6 @@ def updateFacture(id):
         return jsonify({"message": "Echec de la modification de la facture"}), 500
     
 
-# @facture.route('/report/<int:facture_id>',methods=['GET'])
-# @jwt_required()
-# def report(facture_id):
-#     facture = Factures.query.get_or_404(facture_id)
-#     facture_data = facture.serialize()
-
-#     html = render_template('facture_report.html', facture=facture_data)
-    
-#     pdf = weasyprint.HTML(string=html).write_pdf()
-
-#     response = make_response(pdf)
-#     response.headers['Content-Type'] = 'application/pdf'
-#     response.headers['Content-Disposition'] = f'inline; filename=report_facture_{facture_id}.pdf'
-
-#     return response
-
 @facture.route('/auto/<int:facture_id>',methods=['GET'])
 def factAuto(facture_id):
     facture = Factures.query.get_or_404(facture_id)
@@ -297,18 +279,12 @@ def schedule_reminders():
     with app.app_context():
         current_date = datetime.now().date()  
 
-        overdue_invoices = Factures.query.filter(Factures.echeance < datetime.now(),Factures.statut == 'Échue').all()
-        print(overdue_invoices)
+        overdue_invoices = Factures.query.filter(Factures.echeance < datetime.now(),Factures.statut == 'Échue',Factures.actifRelance == True).all()
         for invoice in overdue_invoices:
-            print(invoice)
-            sys.stdout.flush() 
+        
             serialized_invoice = invoice.serializeForEmail()
             next_reminder_date = serialized_invoice['echeance'] + timedelta(days=(serialized_invoice['nbrRelance'] + 1) * serialized_invoice['delaiRelance'])
             next_reminder_date = next_reminder_date.date()  
-            print('next : ' , next_reminder_date)
-            sys.stdout.flush() 
-            print('current :' , current_date)
-            sys.stdout.flush() 
             if current_date == next_reminder_date and serialized_invoice['nbrRelance'] < serialized_invoice['maxRelance']:
                 email_param = EmailCascade.query.filter_by(type='Relance').first()
     
@@ -331,12 +307,9 @@ def schedule_reminders():
                 msg.body = body    
                 mail.send(msg)
                 invoice.nbrRelance = serialized_invoice['nbrRelance'] + 1
-                print(serialized_invoice['nbrRelance'])
-                sys.stdout.flush() 
+
                 if serialized_invoice['nbrRelance'] >= serialized_invoice['maxRelance']:
                     last_reminder_date = serialized_invoice['echeance'] + timedelta(days=serialized_invoice['nbrRelance'] * serialized_invoice['delaiRelance'])
-                    print(last_reminder_date)
-                    sys.stdout.flush() 
                     last_reminder_date=last_reminder_date.date()
                     if current_date >= last_reminder_date + timedelta(days=3):
                         invoice.statut = 'Fermée'
@@ -422,5 +395,4 @@ def export_csv_factures():
             headers={"Content-Disposition": "attachment;filename=facturesEncours.csv"}
               )
     except Exception as e:
-        print(f"Error: {e}")
         return jsonify({"error": str(e)}), 500

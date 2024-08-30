@@ -1,7 +1,4 @@
-import requests
-from flask import jsonify, request
-from flask_jwt_extended import jwt_required
-
+from flask import jsonify
 from contrat.model import Contrats
 from paramEntreprise.model import ParamEntreprise
 

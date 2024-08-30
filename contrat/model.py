@@ -1,6 +1,5 @@
 import base64
 from db import db
-from datetime import datetime
 from client.view import *
 from paramEntreprise.view import *
 

@@ -1,15 +1,12 @@
 import base64
 from logging import log
-from flask import Blueprint, current_app, render_template, request, jsonify, make_response 
-from datetime import date, datetime, timedelta
-import weasyprint 
+from flask import Blueprint, request, jsonify, make_response 
+from datetime import  datetime
 from contrat.model import Contrats
 from contrat.utils import activer_client, get_latest_paramentreprise
 from db import db
 from client.view import *
-from sqlalchemy import cast, Integer 
-import requests  
-from flask_jwt_extended import get_jwt, jwt_required, get_jwt_identity 
+from flask_jwt_extended import  jwt_required 
 from facture.model import Factures
 from facture.utils import parse_date, updateFactureAfterContractUpdate
 from paramEntreprise.view import *
@@ -70,12 +67,11 @@ def create_contrat():
         return jsonify({'erreur': "Référence de contrat existe déja"}), 409
     
     response = activer_client(token, client_id)
-    if response.status_code != 200:
+    if response[1] != 200:  
         return jsonify({
             "erreur": "Échec dans l'activation du client"
         }), 500
 
-    print(data)
 
     pdf_file = None
     if contratFile:
@@ -85,7 +81,6 @@ def create_contrat():
     new_contrat = Contrats(reference=reference,devise=devise, dateDebut=dateDebut,dateFin=dateFin,delai=delai,contratFile=pdf_file,
                 client_id=client_id,type=type,total=total,prixJourHomme=prixJourHomme,typeFrequenceFacturation=typeFrequenceFacturation,
                 detailsFrequence=detailsFrequence,montantParMois=montantParMois,paramentrep_id=paramentrep_id  )
-    print(new_contrat)
     db.session.add(new_contrat)
     db.session.commit()
     return make_response(jsonify({"message": "contrat crée avec succes", "contrat": new_contrat.serialize()}), 201)
@@ -157,60 +152,7 @@ def get_actual_contrat_by_client(id):
     return jsonify({"message": "Contrats actuels trouvés pour le client", "contracts": serialized_contracts}), 200
 
 
-#UpdateContrat
-# @contrat.route('/updateContrat/<int:id>',methods=['PUT'])
-# @jwt_required()
-# def updateContrat(id):
-#     contrat = Contrats.query.get(id)
-
-#     if not contrat:
-#         return jsonify({"message": "contrat n'existe pas"}), 404
-#     def parse_date(date_input):
-#         if isinstance(date_input, str):
-#             try:
-#                 return datetime.strptime(date_input, '%Y-%m-%d').date()
-#             except ValueError:
-#                 raise ValueError("Invalid date format")
-#         elif isinstance(date_input, datetime):
-#             return date_input.date()
-#         elif isinstance(date_input, date):
-#             return date_input
-#         else:
-#             raise ValueError("Invalid date format")
-
-#     data = request.get_json()
-#     contratFile = data.get('contratFile')
-#     contrat.reference = data.get("reference",contrat.reference)
-#     contrat.dateDebut= parse_date(data.get("dateDebut",contrat.dateDebut))
-#     contrat.dateFin= parse_date(data.get("dateFin",contrat.dateFin))
-#     contrat.delai = data.get("delai",contrat.delai)
-#     contrat.devise = data.get("devise",contrat.devise)
-#     contrat.type = data.get("type")
-#     contrat.total = data.get("total")
-#     contrat.prixJourHomme = data.get("prixJourHomme")
-#     contrat.typeFrequenceFacturation = data.get("typeFrequenceFacturation")
-#     contrat.detailsFrequence = data.get("detailsFrequence")
-#     contrat.montantParMois = data.get("montantParMois")
-    
-
-#     if contratFile:
-#         contrat.contratFile = base64.b64decode(contratFile)
-    
-#     factures = Factures.query.filter_by(contrat_id=contrat.id).all()
-#     print(contrat.delai)
-#     try:
-#         for facture in factures:
-#             update_facture_result, status_code = updateFactureAfterContractUpdate(facture.id, contrat.delai)
-#             print(facture.id ,'+', contrat.delai)
-#             if not update_facture_result:
-#                 db.session.rollback()  
-#                 return status_code 
-#         db.session.commit()
-#         return jsonify({"message": "contrat modifié avec succès"}), 200
-
-#     except Exception as e:
-#         db.session.rollback()
-#         return jsonify({"message": "Echec de la modification du contrat"}), 500   
+ 
 @contrat.route('/updateContrat/<int:id>', methods=['PUT'])
 @jwt_required()
 def updateContrat(id):

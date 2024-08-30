@@ -1,9 +1,7 @@
 from collections import defaultdict
 from datetime import datetime
-from email.utils import parsedate
 from flask_jwt_extended import jwt_required
 from flask import Blueprint, jsonify, request
-import os
 from contrat.model import Contrats
 from contrat.view import get_contrat_by_id
 from dashboard.utils import formater_montant_euro, get_param_entreprise_by_id
@@ -45,7 +43,6 @@ def facture_stats():
         stats[statut]["count"] += 1
         stats[statut]["total_montant"] += float(formater_montant_euro(amount))
 
-    print(jsonify(stats))
     return jsonify(stats)
 
 @dashboard.route('/getTauxRecouvrement', methods=['GET'])
@@ -307,18 +304,6 @@ def contrat_stats():
 
     serialized_due_today_contrats = [contrat.serialize() for contrat in actif_contrats]
     return jsonify(serialized_due_today_contrats)
-
-
-
-    # current_date = datetime.now().date()
-    # actif_contrats = Contrats.query.filter(Contrats.dateFin >= current_date).all()
-    # actif = len(actif_contrats)
-    # total = len(Contrats.query.all())
-    # pourcentage_actif = (actif / total) * 100 if total else 0
-
-    # return jsonify({'totalContratActif': actif,
-    #                 "pourcentageActif" :pourcentage_actif })
-
 
 
 @dashboard.route('/getCA', methods=['GET'])

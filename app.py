@@ -1,8 +1,6 @@
-from datetime import timedelta
 from flask import Flask
 import logging
 from flask_cors import CORS
-from dotenv import load_dotenv
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask_login import LoginManager
 from apscheduler.triggers.cron import CronTrigger
@@ -62,7 +60,7 @@ app.logger.addHandler(handler)
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=retard_counter, trigger=CronTrigger(hour=00, minute=00))
-scheduler.add_job(func=schedule_reminders, trigger=CronTrigger(hour=18, minute=3))
+scheduler.add_job(func=schedule_reminders, trigger=CronTrigger(hour=23, minute=34))
 scheduler.start()
 
 with app.app_context():

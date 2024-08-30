@@ -1,12 +1,11 @@
 import io
 from flask import Blueprint, Response, request, jsonify, make_response
-from flask_login import login_required
 import pandas as pd
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from client.model import Users
 from db import db
 import validators
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 
 
 user = Blueprint('user', __name__, url_prefix='/user')
@@ -80,7 +79,6 @@ def get_all_archived_clients():
     archived_clients = Users.query.filter_by(actif=False).order_by(Users.dateCreation.desc()).all()
     serialized_clients = [client.serialize() for client in archived_clients]
     return jsonify(serialized_clients)
-    #return list(map(lambda x: x.serialize(), archived_clients))
 
 
 #GetClientByID
@@ -168,9 +166,7 @@ def export_csv_actifusers():
             columns = ['username','email', 'emailcc', ]  # Default columns
 
         users = Users.query.filter_by(actif=True).all()
-        print(users)
         users_list = [user.serialize_for_export() for user in users]
-        print(users_list)
         for col in columns:
             if col not in users_list[0]:
                 return Response(
@@ -209,9 +205,7 @@ def export_csv_nonactifusers():
             columns = ['username','email', 'emailcc', ]  # Default columns
 
         users = Users.query.filter_by(actif=False).all()
-        print(users)
         users_list = [user.serialize_for_export() for user in users]
-        print(users_list)
         for col in columns:
             if col not in users_list[0]:
                 return Response(
@@ -231,5 +225,4 @@ def export_csv_nonactifusers():
             headers={"Content-Disposition": "attachment;filename=actifusers.csv"}
               )
     except Exception as e:
-        print(f"Error: {e}")
         return jsonify({"error": str(e)}), 500
